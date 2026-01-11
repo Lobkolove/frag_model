@@ -57,17 +57,20 @@
 sSBR <- function(model_sample, 
                  distvec = NULL) {
   
+  # Drop empty species
+  model_sample <- model_sample %>%
+    filter(rowSums(across(starts_with("sp"))) > 0)
+  
   # Extract species data as presence–absence, drop empty species
   pa_table <- model_sample %>%
     select(starts_with("sp")) %>%
     select(where(~ sum(.x) > 0)) %>%
-    mutate(across(everything(), ~ as.integer(.x > 0)))
+    mutate(across(everything(), ~ (.x > 0) * 1))
   
   n <- nrow(pa_table)
   
   # Extract coordinates
   coords <- model_sample %>%
-    filter(rowSums(across(starts_with("sp"))) > 0) %>%
     select(loc_x, loc_y)
   
   # Pairwise distances

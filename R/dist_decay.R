@@ -18,14 +18,16 @@ dist_decay <- function(model_sample,
                        binary = FALSE, 
                        method = "bray") { 
   
+  # Drop empty sites
+  model_sample <- model_sample %>%
+    filter(rowSums(across(starts_with("sp"))) > 0)
+  
   # Extract community matrix and drop empty sites
   comm <- model_sample %>%
-    select(starts_with("sp")) %>%
-    filter(rowSums(.) > 0)
+    select(starts_with("sp"))
   
   # Generate matrix with pairwise spatial distance between sites 
   coords <- model_sample %>% 
-    filter(rowSums(across(starts_with("sp"))) > 0) %>% 
     select(loc_x, loc_y) 
   
   d <- stats::dist(coords) # spatial Euclidean distance

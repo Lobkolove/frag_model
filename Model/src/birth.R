@@ -47,9 +47,9 @@ birth <- function(agents, agents_grid, grid, NB, disp, d_dis) {
         # generate new location for birth
         # dispersal_kernel <- sample(c(-4, -3, -2, -1, 1, 2, 3, 4), 2)
         # new_loc_short <- c(cur_loc[1] + dispersal_kernel[1], cur_loc[2] + dispersal_kernel[2])
-        new_loc_short <- disperse(cur_loc = cur_loc,
-                                  d_sd = d_dis,
-                                  d_mean = d_dis)
+        new_loc_short <- toroidal_disperse(cur_loc = cur_loc,
+                                           d_sd = d_dis,
+                                           d_mean = d_dis)
         inter_cell_subset <- collapse::fsubset(agents, x_loc == new_loc_short[1] & y_loc == new_loc_short[2])
         intra_cell <- collapse::fnrow(collapse::fsubset(inter_cell_subset, species_id == agents$species_id[i]))
         inter_cell <- collapse::fnrow(inter_cell_subset)

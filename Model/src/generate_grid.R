@@ -18,7 +18,7 @@ generate_grid <- function(gr_size, ac_amount, frag_amount, hab_amount) {
   # } else {
   #   frag_grid <- nlm_fbm(gr_size, gr_size, resolution = 1, fract_dim = 2 * (1 - frag_amount), modus_operandi = "easygoing")
   # }
-  env_grid <- nlm_fbm(gr_size, gr_size, resolution = 1, fract_dim = 2 * (ac_amount))
+    # env_grid <- nlm_fbm(gr_size, gr_size, resolution = 1, fract_dim = 2 * (ac_amount))
   # frag_grid <- nlm_fbm(gr_size, gr_size, resolution = 1, fract_dim = 2 * (1 - frag_amount))
   # 
   # if (hab_amount < 1) {
@@ -29,7 +29,8 @@ generate_grid <- function(gr_size, ac_amount, frag_amount, hab_amount) {
   #   binary_grid[binary_grid > 1] <- env_grid[binary_grid > 1] # Merge the layers into final space grid
   #   binary_grid[binary_grid == 0] <- 0.001
   # } else {
-    binary_grid <- env_grid
+    # binary_grid <- env_grid
   # }
-  return(binary_grid)
+  # return(binary_grid)
+  return(fbm_fft(gr_size, ac_amount, raster = T))
 }

@@ -10,11 +10,10 @@ initialize <- function(frag, hab, ac, nb) {
   grid <- generate_grid(gr_size = mod_par$grid_size, 
                         ac_amount = ac, 
                         frag_amount = frag,
-                        hab_amount =  hab
-                        ) 
+                        hab_amount =  hab) 
   
   agents_init <- generate_agents(n_species = mod_par$n_species,
-                            pop = mod_par$n_pop, grid) 
+                                 pop = mod_par$n_pop, grid) 
   
   agents_grid_and_list <- distribute_agent(gr_size = mod_par$grid_size,
                                            agents_list = agents_init, 

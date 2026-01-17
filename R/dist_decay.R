@@ -43,6 +43,11 @@ dist_decay <- function(model_sample,
   # order by increasing distance
   out_dat <- out_dat[order(out_dat$distance), ]
   
+  # Toroidal cutoff: distances beyond half the maximum are not meaningful
+  d_cut <- max(out_dat$distance, na.rm = TRUE) / 2
+  out_dat <- out_dat %>%
+    dplyr::filter(distance <= d_cut)
+  
   out_pred <- data.frame(distance   = seq(min(out_dat$distance),
                                           max(out_dat$distance),
                                           length = 200),
@@ -62,17 +67,20 @@ dist_decay <- function(model_sample,
               smooth = out_pred)    # distance, similarity, CI
   
   class(out) <- "dist_decay"
+  attr(out, "dissimilarity_method") <- method  
   return(out)
   
 }
 
 #' @export
 plot.dist_decay <- function(dd_object,
-                            col = "red",
+                            col = "violetred4",
                             ...) {
   
   dat <- dd_object$data
   sm <- dd_object$smooth
+  
+  method <- attr(dd_object, "dissimilarity_method")
   
   # Scatterplot
   graphics::plot(dat$distance,
@@ -80,8 +88,8 @@ plot.dist_decay <- function(dd_object,
                  col = adjustcolor(col, alpha.f = .5),
                  pch = 16,
                  cex = .75,
-                 xlab = "Spatial distance",
-                 ylab = "Similarity",
+                 xlab = "Euclidean distance",
+                 ylab = paste0("Similarity (1 - ", method, " dissimilarity)"),
                  main = "Distance decay")
   
   

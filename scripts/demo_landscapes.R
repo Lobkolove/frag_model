@@ -1,8 +1,7 @@
 library(here)
 library(viridis)
 source(here("R", "export_tiled.R"))
-source(here("R", "grf_fft.R"))
-source(here("R", "fbm_fft.R"))
+source(here("Model/src", "landscape.R"))
 
 
 # Generate and export landscape figures
@@ -11,7 +10,7 @@ source(here("R", "fbm_fft.R"))
 
 # Example for Hurst = 0.5
 H <- 0.5
-fbm <- fbm_fft(n = 400, H = H, seed = 981)
+fbm <- fbm_fft(gr_size = 400, ac_amount = H, raster = F, seed = 42)
 
 # Plot
 image(fbm, asp = 1, axes = F, col = viridis(100),
@@ -37,7 +36,7 @@ export_tiled(
 # Generate sequence for H from 0 to 1 (by 0.1)
 H <- seq(from = 0, to = 1, by = 0.1)
 for (value in H) {
-  fbm <- fbm_fft(n = 400, H = value)
+  fbm <- fbm_fft(gr_size = 400, ac_amount = value, raster = F, seed = 42)
   image(fbm, asp = 1, axes = F, col = viridis(100),
         main = paste("H =", value))
   

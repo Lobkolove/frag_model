@@ -109,6 +109,12 @@ sSBR <- function(model_sample,
   
   out_dat <- out_dat[order(out_dat$id, out_dat$distance), ]
   
+  # Toroidal cutoff: distances beyond half the maximum are not meaningful
+  d_cut <- max(out_dat$distance, na.rm = TRUE) / 2
+  
+  out_dat <- out_dat %>%
+    dplyr::filter(distance <= d_cut)
+  
   
   # Fit model - GAM with monotonously increasing constraint
   scam1 <- scam::scam(S ~ s(distance, bs = "mpi"),
@@ -141,7 +147,7 @@ sSBR <- function(model_sample,
 }
 
 plot.sSBR <- function(sSBR_object,
-                      col = "blue",
+                      col = "midnightblue",
                       ...) {
   
   dat <- sSBR_object$data
@@ -151,7 +157,7 @@ plot.sSBR <- function(sSBR_object,
   graphics::plot(NA,
                  xlim = range(dat$distance, na.rm = TRUE),
                  ylim = range(dat$S, na.rm = TRUE),
-                 xlab = "Spatial distance",
+                 xlab = "Euclidean distance",
                  ylab = "Cumulative species richness",
                  las = 1,
                  main = "Spatially constrained rarefaction")

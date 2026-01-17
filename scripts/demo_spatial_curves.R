@@ -11,7 +11,7 @@ source(here("R", "sSBR.R"))
 
 # 0. Model sample output --------------------------------------------------
 
-sample_low <- read.csv(here("data-raw/test_Ju_low_rep_1_output_sample.csv"))
+sample_low <- read.csv(here("data-raw/test_Ju_low_fragmentation_output_sample.csv"))
 sample_high <- read.csv(here("data-raw/test_Ju_high_rep_1_output_sample.csv"))
 
 # At the moment, we're only interested in the samples from right after 

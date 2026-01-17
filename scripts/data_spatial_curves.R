@@ -33,7 +33,7 @@ result <- GeDo_run(
 
 data.table::fwrite(
   x = result[["output_sample"]],
-  file = paste0("data-raw/test_Ju_low_rep_", task_id, "_output_sample.csv"),
+  file = paste0("data-raw/test_Ju_low_fragmentation_output_sample.csv"),
   sep = ","
 )
 
@@ -50,6 +50,6 @@ result <- GeDo_run(
 
 data.table::fwrite(
   x = result[["output_sample"]],
-  file = paste0("data-raw/test_Ju_high_rep_", task_id, "_output_sample.csv"),
+  file = paste0("data-raw/test_Ju_high_fragmentation_output_sample.csv"),
   sep = ","
 )

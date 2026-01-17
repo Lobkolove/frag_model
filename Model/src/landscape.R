@@ -101,9 +101,9 @@ fbm_fft <- function(
     resolution = 1,
     ac_amount = 0.7,
     alpha.min = 0,
-    alpha.max = 4,
+    alpha.max = 3,
     seed = NULL,
-    raster = FALSE,
+    raster = TRUE,
     rescale = TRUE
 ) {
   
@@ -135,7 +135,10 @@ fbm_fft <- function(
   f_field[1, 1] <- 0 # remove mean
   
   field <- Re(fft(f_field, inverse = TRUE))
-  field <- scale(field)
+  # field <- scale(field)
+  
+  # Rescale to 0-1
+  if(rescale) field <- scales::rescale(field)
   
   # Convert to raster and rescale
   if (raster) {
@@ -147,9 +150,6 @@ fbm_fft <- function(
       nrow(rast) * resolution
     )
     raster::res(rast) <- resolution 
-    
-    # Rescale to 0-1
-    if(rescale) landscapetools::util_rescale(rast) 
     
     return(rast)
   } else {

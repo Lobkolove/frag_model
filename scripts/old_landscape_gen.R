@@ -22,7 +22,7 @@ for (ac_amount in ac_vals) {
                       fract_dim = 2 * (ac_amount))
   
   # Add information about used parameters to the filename: 
-  filename <- paste0("data-raw/nlm_fbm_ac_", ac_amount, "_landscape.tif")
+  filename <- paste0("data-raw/nlm_fbm_ac", ac_amount, ".tif")
   
   # write as GeoTIFF
   raster::writeRaster(env_grid,

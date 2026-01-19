@@ -41,7 +41,7 @@ mtext("High fragmentation", side = 3, line = 0.5,
       cex = 0.9, col = "steelblue4")
 
 
-# 3. Spatially constrained sample based rarefaction (sSBR) ----------------
+# 2. Spatially constrained sample based rarefaction (sSBR) ----------------
 
 # Compute spatial rarefaction
 src_low <- sSBR(low41)
@@ -89,4 +89,39 @@ mtext("Low fragmentation", side = 3, line = 0.5,
 plot(src_high, col = "steelblue4")
 mtext("High fragmentation", side = 3, line = 0.5, 
       cex = 0.9, col = "steelblue4")
+
+
+# Example with different sampling methods ---------------------------------
+
+sample_ran <- read.csv("data-raw/post_frag_sample_ran.csv")
+sample_full <- read.csv("data-raw/post_frag_sample_full.csv")
+sample_cb <- read.csv("data-raw/post_frag_sample_cb.csv")
+
+# Compute distance decays
+dd_ran <- dist_decay(sample_ran, binary = FALSE, method = "bray")
+dd_full <- dist_decay(sample_full, binary = FALSE, method = "bray")
+dd_cb <- dist_decay(sample_cb, binary = FALSE, method = "bray")
+
+# Plot distance decays
+plot(dd_ran, col = "darkslategrey")
+mtext("30 Random Samples", side = 3, line = 0.5, cex = 0.9, col = "darkslategrey")
+plot(dd_full, col = "steelblue4")
+mtext("Full grid", side = 3, line = 0.5, cex = 0.9, col = "steelblue4")
+plot(dd_cb, col = "violetred4")
+mtext("Chessboard", side = 3, line = 0.5, cex = 0.9, col = "violetred4")
+
+
+# Compute SRCs
+src_ran <- sSBR(sample_ran)
+src_full <- sSBR(sample_full)
+src_cb <- sSBR(sample_cb)
+
+# Plot distance decays
+plot(src_ran, col = "darkslategrey")
+mtext("30 Random Samples", side = 3, line = 0.5, cex = 0.9, col = "darkslategrey")
+plot(src_full, col = "steelblue4")
+mtext("Full grid", side = 3, line = 0.5, cex = 0.9, col = "steelblue4")
+plot(src_cb, col = "violetred4")
+mtext("Chessboard", side = 3, line = 0.5, cex = 0.9, col = "violetred4")
+
 

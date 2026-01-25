@@ -32,5 +32,5 @@ generate_grid <- function(gr_size, ac_amount, frag_amount, hab_amount) {
     # binary_grid <- env_grid
   # }
   # return(binary_grid)
-  return(fbm_fft(gr_size, ac_amount, raster = T))
+  return(fbm_fft(gr_size = gr_size, ac_amount = ac_amount, raster = T))
 }

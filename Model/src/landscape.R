@@ -98,8 +98,8 @@ nlm_fbm <- function(ncol,
 #' @export
 fbm_fft <- function(
     gr_size = 128,
-    resolution = 1,
     ac_amount = 0.7,
+    resolution = 1,
     alpha.min = 0,
     alpha.max = 3,
     seed = NULL,
@@ -135,7 +135,7 @@ fbm_fft <- function(
   f_field[1, 1] <- 0 # remove mean
   
   field <- Re(fft(f_field, inverse = TRUE))
-  # field <- scale(field)
+  # field <- scale(field) # Not sure if needed if we rescale? 
   
   # Rescale to 0-1
   if(rescale) field <- scales::rescale(field)

@@ -7,7 +7,7 @@ ls_mask <- function(grid = grid,
   # Generate full grid which will be turned into mask
   mask_prep <- fbm_fft(mod_par$grid_size, 
                        ac_amount = fragmentation, 
-                       raster = T)
+                       raster = T, seed = seed)
   
   # Assess threshold for binarization, based on aimed habitat proportion
   threshold <- raster::quantile(mask_prep, probs = 1 - habitat)[[1]]

@@ -13,7 +13,6 @@ source("Model/src/cookie_cutting.R")
 source("Model/src/ls_mask.R")
 
 # Example parameters:
-set.seed(42)
 spatial_ac <- 0.7
 niche_breadth <- 0.1
 habitat_ratio <- 0.15
@@ -47,7 +46,7 @@ for (i in 1:length(frag_levels)) {
   
   # With cookie cutter function
   full_ck <- cookie_cutting(
-    grid = grid,
+    grid = full_grid,
     agents = agents,
     agents_grid = agents_grid,
     habitat = habitat_ratio,
@@ -57,7 +56,7 @@ for (i in 1:length(frag_levels)) {
   
   # With mask function
   full_ms <- ls_mask(
-    grid = grid,
+    grid = full_grid,
     agents = agents,
     agents_grid = agents_grid,
     habitat = habitat_ratio,

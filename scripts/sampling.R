@@ -1,21 +1,21 @@
-require(raster)
-require(data.table)
+library(raster)
+library(data.table)
 library(foreach)
 
+source("Model/parameters.R")
+source("Model/src/initialize.R")
+source("Model/src/landscape.R")
 source("Model/src/generate_grid.R")
 source("Model/src/generate_agents.R")
 source("Model/src/distribute_agents.R")
 source("Model/src/birth.R")
 source("Model/src/death.R")
-source("Model/src/initialize.R")
+source("Model/src/immigration.R")
 source("Model/src/animate.R")
 source("Model/src/cookie_cutting.R")
-source("Model/src/immigration.R")
-source("Model/src/landscape.R")
 source("Model/src/disperse.R")
 source("Model/src/run_model_step.R")
 source("Model/src/clean_run.R")
-source("Model/parameters.R")
 source("R/sample_cells.R")
 
 
@@ -26,7 +26,7 @@ states <- clean_run(
   var_par,
   switch,
   sim_id,
-  record_steps = "post_frag_start",
+  record_steps = "post_fragmentation",
   seed
 ) 
 
@@ -34,6 +34,9 @@ post_frag_state <- states$post_frag_start
 
 # Export as RDS
 saveRDS(post_frag_state, "data-raw/post_frag_state_test1.rds")
+
+# OR read in exported state:
+post_frag_state <- readRDS("data-raw/post_frag_state_test1.rds")
 
 
 # Sampling ----------------------------------------------------------------

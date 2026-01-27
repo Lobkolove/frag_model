@@ -14,7 +14,6 @@ run_model_step <- function(agents,
     disp = var_par$disp,
     d_dis = var_par$disp_dist
   )
-  
   agents <- step1$agents
   agents_grid <- step1$agents_grid
   
@@ -25,13 +24,15 @@ run_model_step <- function(agents,
     grid = grid,
     edge_fac = var_par$edge
   )
-  
   agents <- step2$agents
   agents_grid <- step2$agents_grid
   
   # Immigration
   if (switch$immigration == 1) {
-    step3 <- immigration(agents, agents_grid, grid)
+    step3 <- immigration(
+      agents = agents, 
+      agents_grid = agents_grid, 
+      grid = grid)
     agents <- step3$agents
     agents_grid <- step3$agents_grid
   }

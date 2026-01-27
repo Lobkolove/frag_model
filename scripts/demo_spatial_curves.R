@@ -122,6 +122,7 @@ mtext("30 Random Samples", side = 3, line = 0.5, cex = 0.9, col = "darkslategrey
 plot(src_full, col = "steelblue4")
 mtext("Full grid", side = 3, line = 0.5, cex = 0.9, col = "steelblue4")
 plot(src_cb, col = "violetred4")
-mtext("Chessboard", side = 3, line = 0.5, cex = 0.9, col = "violetred4")
+mtext("Chessboard sampling", side = 3, line = 0.5, cex = 0.9, col = "violetred4")
+
 
 

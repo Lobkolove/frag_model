@@ -93,7 +93,7 @@ nlm_fbm <- function(ncol,
 #' plot(rast_landscape)
 #'
 #' @importFrom raster raster extent res
-#' @importFrom landscapetools util_rescale
+#' @importFrom scales rescale
 #' @importFrom checkmate assert_count assert_numeric assert_true assert_logical
 #' @export
 fbm_fft <- function(

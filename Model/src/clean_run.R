@@ -45,6 +45,7 @@ clean_run <- function(mod_par,
       step          = step_number,
       step_label    = step_label,
       fragmentation = var_par$frag,
+      ac_amount     = var_par$ac,
       habitat       = var_par$hab,
       grid_size     = mod_par$grid_size,
       grid          = grid,
@@ -94,7 +95,6 @@ clean_run <- function(mod_par,
   
 
 # Fragmentation event -----------------------------------------------------
-
 
   
   frag_out <- cookie_cutting(

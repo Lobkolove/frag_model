@@ -1,14 +1,14 @@
 ################## Dynamic model function reduced to core ######################
 
-# Reduced version of GeDo_run.R which only runs the model logic and returns a 
-# complete system state (agents + landscape) at selected timesteps.
-# The idea is to separate simulation from sampling methods and analysis.
+# Reduced version of GeDo_run.R which only runs the model logic and returns a
+# complete system state (landscape, agents list and agent grid) at selected
+# timesteps.
 
 clean_run <- function(mod_par,
                       var_par,
                       switch,
                       sim_id,
-                      record_steps = c("post_frag_start", "final"),
+                      record_steps = c("start", "post_fragmentation", "final"),
                       seed = NULL) {
   
 
@@ -40,9 +40,6 @@ clean_run <- function(mod_par,
   
   # Helper to store a full system snapshot
   record_state <- function(step_label, step_number) {
-    
-    clumped <- clump(grid, direction = 4, gaps = FALSE)
-    
     list(
       sim_id        = sim_id,
       step          = step_number,
@@ -51,11 +48,18 @@ clean_run <- function(mod_par,
       habitat       = var_par$hab,
       grid_size     = mod_par$grid_size,
       grid          = grid,
-      clumped       = clumped,
-      agents        = agents
+      agents        = agents,
+      agents_grid   = agents_grid
     )
   }
   
+  # Record immediately after fragmentation
+  if ("start" %in% record_steps) {
+    state_list[["start"]] <- record_state(
+      step_label  = "start",
+      step_number = 1
+    )
+  }
 
   # Pre-fragmentation -------------------------------------------------------
   
@@ -84,7 +88,7 @@ clean_run <- function(mod_par,
     end.time <- Sys.time()
     time.taken <- round(end.time - start.time, 2)
     if (switch$print_agents == 1) {
-      print(paste("step ", i, " took ", time.taken, " with ", nrow(agents), " agents", sep = ""))
+      cat("step", i, "took", time.taken, "with", nrow(agents), "agents\n")
     }
   }
   
@@ -110,9 +114,9 @@ clean_run <- function(mod_par,
   }
   
   # Record immediately after fragmentation
-  if ("post_frag_start" %in% record_steps) {
-    state_list[["post_frag_start"]] <- record_state(
-      step_label  = "post_frag_start",
+  if ("post_fragmentation" %in% record_steps) {
+    state_list[["post_fragmentation"]] <- record_state(
+      step_label  = "post_fragmentation",
       step_number = steps_1 + 1
     )
   }

@@ -164,7 +164,7 @@ GeDo_run <- function(mod_par,
     print("check switches please")
   }
   # clumping raster to get the number of patches later
-  clumped <- clump(grid, direction = 4, gaps = F)
+  clumped <- clump(grid, directions = 4, gaps = F)
   # creating a frequency table from the patches raster
   clump_freq <- na.omit(freq(clumped))
 

@@ -16,8 +16,17 @@ sample_cells <- function(full_state,
   step   <- full_state$step
   grid_size <- full_state$grid_size
   fragmentation <- full_state$fragmentation
+  clumped <- toroidal_clump(grid, directions = 4)
   
-  # Habitat cells only
+
+  # Create named vector for patches: name = patch ID, value = patch size
+  patch_freq <- raster::freq(clumped, useNA = "no")
+  patch_ids   <- patch_freq[, 1]
+  patch_sizes <- patch_freq[, 2]
+  patches <- setNames(patch_sizes, patch_ids)
+  
+  
+  # Extract IDs of habitat cells only
   grid_vals <- raster::getValues(grid)
   habitat_cells <- which(!is.na(grid_vals))
   
@@ -53,10 +62,12 @@ sample_cells <- function(full_state,
   # Iterate through all selected samples
   for (i in seq_along(samples)) {
     
+    # Cell ID
     cell <- samples[i]
     
-    # Assess coordinates
+    # Assess coordinates and patch ID
     xyloc <- raster::rowColFromCell(grid, cell)
+    pid <- clumped[cell]
     
     # Abundance vector for each species
     species_counts <- sapply(
@@ -73,12 +84,14 @@ sample_cells <- function(full_state,
     # Add sample to the output list
     out[[i]] <- c(
       sim_id = sim_id,
-      sample_id = i,
       step = step,
       fragmentation = fragmentation,
       grid_size = grid_size,
+      sample_id = i,
       loc_x = xyloc[1],
       loc_y = xyloc[2],
+      patch_id = pid,
+      patch_size = patches[[as.character(pid)]],
       species_counts
     )
   }

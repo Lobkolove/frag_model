@@ -153,6 +153,9 @@ plot.sSBR <- function(sSBR_object,
   dat <- sSBR_object$data
   sm  <- sSBR_object$smooth
   
+  # Set transparency level for lines based on number of observations
+  alpha <- ifelse(nrow(dat) > 1000, .2, .5)
+  
   # Base plot
   graphics::plot(NA,
                  xlim = range(dat$distance, na.rm = TRUE),
@@ -167,20 +170,20 @@ plot.sSBR <- function(sSBR_object,
     tmp <- dat[dat$id == i, ]
     graphics::lines(tmp$distance,
                     tmp$S,
-                    col = adjustcolor(col, alpha.f = .5))
+                    col = colorspace::adjust_transparency(col, alpha = alpha))
   }
   
   # Confidence ribbon
   graphics::polygon(c(sm$distance, rev(sm$distance)),
                     c(sm$S_low, rev(sm$S_high)),
-                    col = adjustcolor(col, alpha.f = .35),
+                    col = colorspace::adjust_transparency(col, alpha = .5),
                     border = NA)
 
   
   # Prediction line
   graphics::lines(sm$distance,
                   sm$S,
-                  col = col,
+                  col = darken(col, amount = .4),
                   lwd = 3)
   
   invisible(sSBR_object)

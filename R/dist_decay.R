@@ -82,10 +82,13 @@ plot.dist_decay <- function(dd_object,
   
   method <- attr(dd_object, "dissimilarity_method")
   
+  # Set transparency level based on number of observations
+  alpha <- ifelse(nrow(dat) > 1000, .1, .5)
+  
   # Scatterplot
   graphics::plot(dat$distance,
                  dat$similarity,
-                 col = adjustcolor(col, alpha.f = .5),
+                 col = colorspace::adjust_transparency(col, alpha = alpha),
                  pch = 16,
                  cex = .75,
                  xlab = "Euclidean distance",
@@ -104,7 +107,7 @@ plot.dist_decay <- function(dd_object,
   # Prediction line
   graphics::lines(sm$distance,
                   sm$similarity,
-                  col = col,
+                  col = colorspace::darken(col, amount = 0.4),
                   lwd = 3)
   
   invisible(dd_object)

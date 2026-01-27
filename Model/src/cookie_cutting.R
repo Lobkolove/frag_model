@@ -6,7 +6,7 @@ cookie_cutting <- function(grid = grid,
 
   # frag_grid <- nlm_fbm(mod_par$grid_size, mod_par$grid_size, resolution = 1, fract_dim = 2 * (1 - fragmentation))
   frag_grid <- fbm_fft(gr_size = mod_par$grid_size, 
-                       ac_amount = fragmentation, 
+                       ac_amount = (1 - fragmentation), 
                        raster = T, seed = seed)
 
   suppressWarnings(binary_grid <- landscapetools::util_binarize(frag_grid, habitat)) # Binarize fragmentation grid as only matrix/habitat values are needed

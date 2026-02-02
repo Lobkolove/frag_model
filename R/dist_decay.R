@@ -20,15 +20,15 @@ dist_decay <- function(model_sample,
   
   # Drop empty sites
   model_sample <- model_sample %>%
-    filter(rowSums(across(starts_with("sp"))) > 0)
+    dplyr::filter(rowSums(across(starts_with("sp"))) > 0)
   
   # Extract community matrix and drop empty sites
   comm <- model_sample %>%
-    select(starts_with("sp"))
+    dplyr::select(starts_with("sp"))
   
   # Generate matrix with pairwise spatial distance between sites 
   coords <- model_sample %>% 
-    select(loc_x, loc_y) 
+    dplyr::select(x_loc, y_loc) 
   
   d <- stats::dist(coords) # spatial Euclidean distance
   
@@ -60,8 +60,8 @@ dist_decay <- function(model_sample,
   pred <- stats::predict(gam1, out_pred, se = T)
   
   out_pred$similarity <- pred$fit
-  out_pred$simi_low <- pred$fit - 2*pred$se.fit
-  out_pred$simi_high <- pred$fit + 2*pred$se.fit
+  out_pred$simi_low   <- pred$fit - 2*pred$se.fit
+  out_pred$simi_high  <- pred$fit + 2*pred$se.fit
   
   out <- list(data   = out_dat,    # distance, similarity
               smooth = out_pred)    # distance, similarity, CI
@@ -83,7 +83,8 @@ plot.dist_decay <- function(dd_object,
   method <- attr(dd_object, "dissimilarity_method")
   
   # Set transparency level based on number of observations
-  alpha <- ifelse(nrow(dat) > 1000, .1, .5)
+  # alpha <- ifelse(nrow(dat) > 1000, .1, .5)
+  alpha <- 0.05 + 200 / nrow(dat)
   
   # Scatterplot
   graphics::plot(dat$distance,

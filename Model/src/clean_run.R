@@ -1,31 +1,36 @@
 ################## Dynamic model function reduced to core ######################
 
-# Reduced version of GeDo_run.R which only runs the model logic and returns a
-# complete system state (landscape, agents list and agent grid) at selected
-# timesteps.
+# Reduced version of GeDo_run.R which only runs the core model logic.
+# It returns complete system snapshot at selected timesteps, in form of a list 
+# which includes the following:
+# landscape grid (grid), agents list (agents) and a data frame with aggregated
+# species abundances for each site (ss_abund).
 
 clean_run <- function(mod_par,
                       var_par,
                       switch,
                       sim_id,
-                      record_steps = c("start", "post_fragmentation", "final"),
+                      record_steps = c("start", 
+                                       "pre_fragmentation", 
+                                       "post_fragmentation", 
+                                       "final"),
                       seed = NULL) {
   
-
+  force(sim_id)
+  
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  
   # Initialization ----------------------------------------------------------
   
   species_sequence <- 1:mod_par$n_species
   steps_1 <- mod_par$steps_pre_frag
   steps_2 <- mod_par$steps_post_frag
   
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
   
   # Initialize model with 100% habitat
   model_start <- initialize(
-    frag = 0,
-    hab  = 1,
     ac   = var_par$ac,
     nb   = var_par$nb
   )
@@ -40,8 +45,14 @@ clean_run <- function(mod_par,
   
   # Helper to store a full system snapshot
   record_state <- function(step_label, step_number) {
+    
+    # Compute abundances per site per species (makes later sampling much faster)
+    ss_abund <- agents %>%
+      dplyr::count(x_loc, y_loc, species_id, name = "n")
+    
     list(
       sim_id        = sim_id,
+      master_seed   = master_seed,
       step          = step_number,
       step_label    = step_label,
       fragmentation = var_par$frag,
@@ -50,11 +61,11 @@ clean_run <- function(mod_par,
       grid_size     = mod_par$grid_size,
       grid          = grid,
       agents        = agents,
-      agents_grid   = agents_grid
+      ss_abund      = ss_abund
     )
   }
   
-  # Record immediately after fragmentation
+  # Record before the first step
   if ("start" %in% record_steps) {
     state_list[["start"]] <- record_state(
       step_label  = "start",
@@ -72,9 +83,9 @@ clean_run <- function(mod_par,
       
       # Run a full model step and update agents list and grid
       step_out <- run_model_step(
+        grid         = grid,
         agents       = agents,
         agents_grid  = agents_grid,
-        grid         = grid,
         var_par      = var_par,
         switch       = switch
       )
@@ -93,11 +104,18 @@ clean_run <- function(mod_par,
     }
   }
   
+  # Record right before fragmentation
+  if ("pre_fragmentation" %in% record_steps) {
+    state_list[["pre_fragmentation"]] <- record_state(
+      step_label  = "pre_fragmentation",
+      step_number = steps_1
+    )
+  }
 
-# Fragmentation event -----------------------------------------------------
+  # Fragmentation event -----------------------------------------------------
 
   
-  frag_out <- cookie_cutting(
+  frag_out <- fragment(
     grid        = grid,
     agents      = agents,
     agents_grid = agents_grid,

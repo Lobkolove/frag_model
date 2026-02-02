@@ -1,40 +1,26 @@
 sample_cells <- function(full_state,
                          method = c("all", "random", "chessboard"),
                          n_samples = NULL,
+                         format = c("wide", "long"),
                          seed = NULL) {
   
-  method <- match.arg(method)
-  if (!method %in% c("all", "random", "chessboard")) {
-    stop("method must be one of 'all', 'random' or 'chessboard'")
-  }
+  method <- rlang::arg_match(method)
+  format <- rlang::arg_match(format)
   
   if (!is.null(seed)) set.seed(seed)
   
-  grid   <- full_state$grid
-  agents <- full_state$agents
-  sim_id <- full_state$sim_id
-  step   <- full_state$step
-  grid_size <- full_state$grid_size
-  fragmentation <- full_state$fragmentation
-  clumped <- toroidal_clump(grid, directions = 4)
+  # Extract grid and species abundances per cell from state
+  grid            <- full_state$grid
+  ss_abund        <- full_state$ss_abund
   
-
-  # Create named vector for patches: name = patch ID, value = patch size
-  patch_freq <- raster::freq(clumped, useNA = "no")
-  patch_ids   <- patch_freq[, 1]
-  patch_sizes <- patch_freq[, 2]
-  patches <- setNames(patch_sizes, patch_ids)
-  
-  
-  # Extract IDs of habitat cells only
+  # Extract IDs and coordinates of habitat cells only
   grid_vals <- raster::getValues(grid)
   habitat_cells <- which(!is.na(grid_vals))
-  
   # Convert cell index to row/col
   coords <- raster::rowColFromCell(grid, habitat_cells)
   
-  # Select samples
-  samples <- switch(
+  # Select cells to be sampled
+  sampled_cells <- switch(
     method,
     
     all = habitat_cells,
@@ -43,7 +29,7 @@ sample_cells <- function(full_state,
       if (is.null(n_samples)) {
         stop("n_samples must be provided for random sampling")
       }
-      sample(habitat_cells, n_samples)
+      sample(habitat_cells, n_samples)    
     },
     
     chessboard = {
@@ -53,55 +39,51 @@ sample_cells <- function(full_state,
     }
   )
   
-  # Only present species (while all species were included in GeDo_run sample output)
-  species_seq <- sort(unique(agents$species_id))
+  # Assess coordinates of sample cells
+  sample_coords <- raster::rowColFromCell(grid, sampled_cells)
   
-  # Build output
-  out <- vector("list", length(samples))
-  
-  # Iterate through all selected samples
-  for (i in seq_along(samples)) {
-    
-    # Cell ID
-    cell <- samples[i]
-    
-    # Assess coordinates and patch ID
-    xyloc <- raster::rowColFromCell(grid, cell)
-    pid <- clumped[cell]
-    
-    # Abundance vector for each species
-    species_counts <- sapply(
-      species_seq,
-      function(sp) {
-        sum(
-          agents$species_id == sp &
-            agents$x_loc == xyloc[1] &
-            agents$y_loc == xyloc[2]
-        )
-      }
-    )
-    
-    # Add sample to the output list
-    out[[i]] <- c(
-      sim_id = sim_id,
-      step = step,
-      fragmentation = fragmentation,
-      grid_size = grid_size,
-      sample_id = i,
-      loc_x = xyloc[1],
-      loc_y = xyloc[2],
-      patch_id = pid,
-      patch_size = patches[[as.character(pid)]],
-      species_counts
-    )
-  }
-  
-  # Turn list into a data frame
-  out_df <- as.data.frame(do.call(rbind, out))
-  colnames(out_df) <- c(
-    "sim_id", "sample_id", "step", "fragmentation", "grid_size", "loc_x", "loc_y",
-    paste0("sp_", species_seq)
+  samples <- data.frame(
+    sample_id = seq_len(nrow(sample_coords)),
+    cell_id = sampled_cells,
+    x_loc = sample_coords[, 1],
+    y_loc = sample_coords[, 2]
   )
   
-  return(out_df)
+  # Assess patch information
+  clumped <- toroidal_clump(grid, directions = 4) 
+  patch_freq <- raster::freq(clumped, useNA = "no")
+  patch_ids <- patch_freq[, 1]
+  patch_sizes <- patch_freq[, 2]
+  # Create named vector for patches: name = patch ID, value = patch size
+  patches <- setNames(patch_sizes, patch_ids)
+  # Add patch info to samples df
+  samples$patch_id <- clumped[samples$cell_id]
+  samples$patch_size <- unname(patches[as.character(samples$patch_id)])
+  
+  # Add static metadata columns 
+  samples <- samples %>% 
+    dplyr::mutate(sim_id         = full_state$sim_id,
+                  master_seed    = full_state$master_seed,
+                  step           = full_state$step,
+                  grid_size      = full_state$grid_size,
+                  fragmentation  = full_state$fragmentation)
+  
+  
+  # Merge samples df and species abundances per cell
+  out_long <- dplyr::left_join(samples, 
+                               ss_abund, 
+                               by = c("x_loc", "y_loc"))
+  
+  # Return long format
+  if (format == "long") return(out_long)
+
+  # If needed, reformat and return wide format
+  out_wide <- out_long %>% 
+    tidyr::pivot_wider(names_from  = species_id,
+                       values_from = n,
+                       values_fill = 0,
+                       names_prefix = "sp_",
+                       names_sort = TRUE)
+  out_wide
+
 }

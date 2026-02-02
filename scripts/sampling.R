@@ -1,23 +1,25 @@
+library(tidyverse)
 library(raster)
 library(data.table)
-library(foreach)
+library(viridis)
 
 source("Model/parameters.R")
+source("Model/src/clean_run.R")
 source("Model/src/initialize.R")
 source("Model/src/landscape.R")
-source("Model/src/generate_grid.R")
 source("Model/src/generate_agents.R")
 source("Model/src/distribute_agents.R")
 source("Model/src/birth.R")
+source("Model/src/disperse.R")
 source("Model/src/death.R")
 source("Model/src/immigration.R")
-source("Model/src/animate.R")
-source("Model/src/cookie_cutting.R")
-source("Model/src/disperse.R")
+source("Model/src/fragmentation.R")
 source("Model/src/run_model_step.R")
-source("Model/src/clean_run.R")
+
 source("R/sample_cells.R")
 source("R/toroidal_clump.R")
+
+source("R/dist_decay.R")
 
 
 # 0. Setup ----------------------------------------------------------------
@@ -29,24 +31,33 @@ source("R/toroidal_clump.R")
 
   ## 0.1 - Generate new state ####
 
-sim_id <- 3
+sim_id <- 6
 
 # Run dynamic model and get full state right after fragmentation
-states_high <- clean_run(
+states <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
   switch = switch,
   sim_id = sim_id,
-  record_steps = "post_fragmentation",
-  seed = seed
+  record_steps = c("pre_fragmentation", "post_fragmentation"),
+  seed = master_seed
 ) 
-post_frag_high <- states_high$post_fragmentation
 
 # Export as RDS
-saveRDS(post_frag_high, "data-raw/post_frag_high_state_1.rds")
+filepath <- paste0("data-raw/states_frag_", var_par$frag, "_sim_", sim_id)
+saveRDS(states, filepath)
 
   ## 0.2 - Read in previously exported states ####
-post_frag_high <- readRDS("data-raw/post_frag_high_state_1.rds")
+mlow <- readRDS("data-raw/states_frag_0.4_sim_5.rds")
+
+pre_frag_high <- states_high$pre_fragmentation
+post_frag_high <- states_high$post_fragmentation
+
+pre_frag_mlow <- mlow$pre_fragmentation
+post_frag_mlow <- mlow$post_fragmentation
+
+pre_frag_low <- states$pre_fragmentation
+post_frag_low <- states$post_fragmentation
 
 
 # Sampling ----------------------------------------------------------------
@@ -75,4 +86,71 @@ write.csv(low_sample_cb, "data-raw/post_frag_low_sample_cb.csv")
 write.csv(high_sample_ran, "data-raw/post_frag_high_sample_ran.csv")
 write.csv(high_sample_all, "data-raw/post_frag_high_sample_full.csv")
 write.csv(high_sample_cb, "data-raw/post_frag_high_sample_cb.csv")
+
+
+# Extra: pre vs post fragmentation ----------------------------------------
+
+# Grids pre and post fragmentation
+image(pre_frag_low$grid, asp = 1, col = viridis(100))
+image(post_frag_low$grid, asp = 1, col = viridis(100))
+patches <- toroidal_clump(post_frag_low$grid)
+image(patches, asp = 1)
+
+## Random sampling ####
+
+pre_ran <- sample_cells(pre_frag_low, method = "random", n_samples = 30)
+post_ran <- sample_cells(post_frag_low, method = "random", n_samples = 30)
+
+pre_full <- sample_cells(pre_frag_low, method = "all")
+post_full <- sample_cells(post_frag_low, method = "all")
+
+# dist_decay
+dd_pre <- dist_decay(pre_ran)
+plot(dd_pre)
+dd_post <- dist_decay(post_ran)
+plot(dd_post)
+
+dd_post <- dist_decay(post_full)
+plot(dd_post)
+
+# Extract community matrix and drop species with 0 observations
+comm_pre_ran <- pre_ran %>%
+  dplyr::select(starts_with("sp")) %>% 
+  dplyr::select(where(~sum(.) > 0))
+
+# Sampled diversity pre fragmentation 
+mean(vegan::specnumber(comm_pre_ran))  # Alpha div = 25.433
+ncol(comm_pre_ran)                     # Gamma div = 443
+
+# Extract community matrix and drop species with 0 observations
+comm_post_ran <- post_ran %>%
+  dplyr::select(starts_with("sp")) %>% 
+  dplyr::select(where(~sum(.) > 0))
+
+# Sampled diversity post fragmentation 
+mean(vegan::specnumber(comm_post_ran))  # Alpha div = 25.367
+ncol(comm_post_ran)                     # Gamma div = 424
+
+## Full grid ####
+pre_full <- sample_cells(pre_frag_high, method = "all")
+post_full <- sample_cells(post_frag_high, method = "all")
+
+# Extract community matrix and drop species with 0 observations
+comm_pre_full <- pre_full %>%
+  select(starts_with("sp")) %>% 
+  select(where(~sum(.) > 0))
+
+# Total diversity pre fragmentation 
+mean(vegan::specnumber(comm_pre_full))  # Alpha div = 25.433
+ncol(comm_pre_full)                     # Gamma div = 443
+
+# Extract community matrix and drop species with 0 observations
+comm_post_full <- post_ran %>%
+  select(starts_with("sp")) %>% 
+  select(where(~sum(.) > 0))
+
+# Sampled diversity post fragmentation 
+mean(vegan::specnumber(comm_post_full))  # Alpha div = 25.367
+ncol(comm_post_full)                     # Gamma div = 424
+
 

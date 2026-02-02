@@ -1,7 +1,7 @@
 ls_mask <- function(grid,
                     habitat,
                     fragmentation,
-                    seed = NULL) {
+                    seed) {
   
   # Input validation
   if (!inherits(grid, "RasterLayer")) stop("Input grid must be a RasterLayer")
@@ -11,7 +11,7 @@ ls_mask <- function(grid,
   
   # Generate full grid which will be turned into mask
   mask_prep <- fbm_fft(gr_size = grid@ncols, 
-                       ac_amount = fragmentation, 
+                       ac_amount = 1 - fragmentation, 
                        raster = T, 
                        seed = seed)
   
@@ -26,9 +26,6 @@ ls_mask <- function(grid,
   # Turn full grid into binary mask, using this threshold
   mask <- raster::cut(mask_prep, breaks = c(-Inf, threshold, Inf))
   
-  # Old version with landscapetools dependency, replaced by last 2 steps:
-  # suppressWarnings(mask <- landscapetools::util_binarize(mask_prep, habitat)) 
-  
   # Apply mask to input grid
   fragmented_grid <- raster::mask(grid, mask, maskvalue = 1)
   
@@ -41,21 +38,20 @@ fragment <- function(grid,
                      agents_grid,
                      habitat,
                      fragmentation,
-                     seed = NULL,
                      ...) {
   
   # Apply fragmentation to grid
   fragmented_grid <- ls_mask(grid = grid,
                              habitat = habitat,
                              fragmentation = fragmentation,
-                             seed = seed)
+                             seed = seed_fragment)
   
   # Only keep agents which are on habitat cells 
   keep <- !is.na(fragmented_grid[cbind(agents$x_loc, agents$y_loc)])
   agents <- agents[keep, , drop = FALSE]
   
   # Assign patch number (id) to each agent
-  clumped <- raster::clump(fragmented_grid, directions = 4)
+  clumped <- toroidal_clump(fragmented_grid, directions = 4)
   patch_matrix <- as.matrix(clumped)
   agents$patch_id <- patch_matrix[cbind(agents$x_loc, agents$y_loc)]
   

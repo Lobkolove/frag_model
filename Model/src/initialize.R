@@ -5,12 +5,11 @@
 # The function then returns the simulation grid, the updated agents list and 
 # the agents distribution grid in the form of a list
 
-initialize <- function(frag, hab, ac, nb) {
+initialize <- function(ac, nb) {
   
-  grid <- generate_grid(gr_size = mod_par$grid_size, 
-                        ac_amount = ac, 
-                        frag_amount = frag,
-                        hab_amount =  hab) 
+  grid <- fbm_fft(gr_size = mod_par$grid_size,
+                  ac_amount = ac,
+                  seed = seed_landscape) 
   
   agents_init <- generate_agents(n_species = mod_par$n_species,
                                  pop = mod_par$n_pop, grid) 

@@ -6,7 +6,11 @@
 
 # choose a random seed constant for the simulation or set the seed manually
 # seed <- round(runif(1,1,9999))
-seed <- 2027
+master_seed <- 42L
+
+# Ensure distinct seeds for landscape generation and fragmentation
+seed_landscape <- master_seed + 1L
+seed_fragment <- master_seed + 2L
 
 # Switches
 
@@ -40,7 +44,7 @@ mod_par <- data.frame(
   grid_size = 50, # side length of a square grid
   habitat_percent = 0.15, # 0-1 proportion of habitat vs matrix
   spatial_ac = 0.7, # autocorrelation of habitat 0 (rough) - 1 (smooth)
-  frag_factor = 0.75, # level of fragmentation 0 (unified) - 1 (fragmented)
+  frag_factor = 0.25, # level of fragmentation 0 (unified) - 1 (fragmented)
   n_pop = 5000, # setting amount of individuals
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))

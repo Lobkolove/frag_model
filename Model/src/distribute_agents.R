@@ -5,7 +5,6 @@
 
 distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
 
- 
   # extract the extent of the simulation space raster, convert to matrix and create blank matrix
   extent <- extent(space)
   space_mx <- as.matrix(space)
@@ -13,7 +12,6 @@ distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
   clumped <- clump(space, directions = 4)
   samp <- function(x, ...) x[sample.int(length(x), ...)] # redefine sample to work in case of vector length 1
   grid_values <- getValues(space)
-
 
   # populate matrix if random location is a habitat and  survival probability is higher than rand1
   for (k in 1:length(agents_list$ID)) {

@@ -29,7 +29,7 @@ generate_agents <- function(n_species, pop, grid) {
 
   agents_df1 <- as.matrix(agents_df)
 
-  set.seed(seed)
+  set.seed(master_seed)
   
   return(agents_df)
 }

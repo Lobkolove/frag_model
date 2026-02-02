@@ -36,7 +36,7 @@ disperse <- function(cur_loc, d_sd, d_mean) {
 toroidal_disperse <- function(cur_loc,
                               d_sd,
                               d_mean,
-                              grid_size = mod_par$grid_size) {
+                              grid_size) {
   dis_sd <- d_sd
   dis_mean <- d_mean
   

@@ -1,7 +1,7 @@
 # Core model logic for a single timestep
-run_model_step <- function(agents,
+run_model_step <- function(grid,
+                           agents,
                            agents_grid,
-                           grid,
                            var_par,
                            switch) {
   

@@ -4,7 +4,14 @@ ls_mask <- function(grid,
                     seed) {
   
   # Input validation
-  if (!inherits(grid, "RasterLayer")) stop("Input grid must be a RasterLayer")
+  is_raster <- inherits(grid, "RasterLayer")
+  if (!is_raster) {
+    if (is.matrix(grid)) {
+      grid <- raster::raster(grid)
+    } else {
+      stop("Input grid must be a RasterLayer or matrix")
+    }
+  }
   if (grid@ncols != grid@nrows) stop("Grids with different numbers of rows and columns are not supported yet")
   if (habitat <= 0 || habitat >= 1) stop("'habitat' must be a value between 0 and 1")
   if (fragmentation < 0 || fragmentation > 1) stop("'fragmentation' must be a value between 0 and 1")
@@ -29,7 +36,11 @@ ls_mask <- function(grid,
   # Apply mask to input grid
   fragmented_grid <- raster::mask(grid, mask, maskvalue = 1)
   
-  fragmented_grid
+  if (is_raster) {
+    return(fragmented_grid)
+  } else {
+    return(as.matrix(fragmented_grid))
+  }
 }
 
 

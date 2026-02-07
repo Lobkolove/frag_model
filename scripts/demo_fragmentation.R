@@ -13,9 +13,12 @@ source("Model/src/distribute_agents.R")
 
 source("Model/src/cookie_cutting.R")
 source("Model/src/fragmentation.R")
+source("R/toroidal_clump.R")
 
 
 # 0. Setup ----------------------------------------------------------------
+
+set.seed(master_seed)
 
 # Example parameters:
 spatial_ac <- 0.7
@@ -27,8 +30,6 @@ frag_levels <- seq(0.1, 0.9, by = 0.1)
 
 # Initialize model with 100% habitat
 model_start <- initialize(
-  frag = 0,
-  hab  = 1,
   ac   = spatial_ac,
   nb   = niche_breadth
 )
@@ -99,15 +100,53 @@ for (i in seq_along(frag_levels)) {
         asp = 1, col = viridis(100),
         xaxt = "n", yaxt = "n")
   mtext(paste0("Fragmentation = ", frag_levels[i]), 
-        side = 3, line = -3, cex = 1.2, outer = TRUE)
+        side = 3, line = -1.5, cex = 1.2, outer = TRUE)
 }
 
-  ## 2.2 Compare agents ####
+  ## 2.2 Compare patches ####
+
+for (i in seq_along(frag_levels)) {
+  old_grid <- results$cookie_cutter[[i]]$grid
+  new_grid <- results$mask[[i]]$grid
+
+  old_clumped <- toroidal_clump(old_grid, directions = 4)
+  new_clumped <- toroidal_clump(new_grid, directions = 4)
+
+  old_patches <- unique(getValues(old_clumped))
+  new_patches <- unique(getValues(new_clumped))
+  diff_patches <- c(old_patches[!old_patches %in% new_patches], 
+                    new_patches[!new_patches %in% old_patches])
+  if (length(diff_patches) == 0) {
+    diff_patches <- "none"
+  }
+
+  # Patch count and ID check
+  old_n_patches <- length(old_patches)
+  new_n_patches <- length(new_patches)
+  cat("Fragmentation level: ", frag_levels[i], "\n")
+  cat("Number of patches: Cookie Cutter =", old_n_patches, "; Mask =", new_n_patches, "\n")
+  cat("Patch IDs found in one and not the other:", paste(diff_patches, sep = ", ") ,"\n\n")
+
+  # Visualise clumps
+  par(mar = c(2,2,2,1))
+  image(old_clumped, main = "Cookie Cutter",
+        asp = 1, col = Polychrome::createPalette(old_n_patches, c("#00ffff", "#ff00ff", "#ffff00"), M = 250),
+        xaxt = "n", yaxt = "n")
+  par(mar = c(2,1,2,2))
+  image(new_clumped, main = "Mask",
+        asp = 1, col = Polychrome::createPalette(old_n_patches, c("#00ffff", "#ff00ff", "#ffff00"), M = 250),
+        xaxt = "n", yaxt = "n")
+  mtext(paste0("Fragmentation = ", frag_levels[i]), 
+        side = 3, line = -1.5, cex = 1.2, outer = TRUE)
+} 
+  
+  ## 2.3 Compare agents ####
 
 # ...
 
-  ## 2.3 Compare agents_grid ####
+  ## 2.4 Compare agents_grid ####
 
 # ...
 
 
+  

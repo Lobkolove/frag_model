@@ -1,11 +1,22 @@
-# Function to use instead of raster::clump if working on a toroidal grid.
+# Function which extends raster::clump for the use on toroidal grids.
 # raster::clump assumes hard edges and no wrap-around.
 # toroidal_clump merges patches which touch on opposing sides of the grid.
 
-toroidal_clump <- function(grid, directions = 4, reindex = TRUE) {
-  
+toroidal_clump <- function(grid, directions = 4) {
+
+  # Convert to raster (if needed), track whether input was raster
+  is_raster <- inherits(grid, "RasterLayer")
+
+  if (is_raster) {
+    rast <- grid
+  } else if (is.matrix(grid)) {
+    rast <- raster::raster(grid)
+  } else {
+    stop("Input grid must be a RasterLayer or matrix")
+  }
+
   # Standard clumping
-  clumped <- raster::clump(grid, directions = directions, gaps = FALSE)
+  clumped <- raster::clump(rast, directions = directions, gaps = FALSE)
   
   cl_mat <- as.matrix(clumped)
   nrow   <- nrow(cl_mat)
@@ -42,8 +53,7 @@ toroidal_clump <- function(grid, directions = 4, reindex = TRUE) {
   merge_pairs <- unique(do.call(rbind, merge_pairs))
   
   # Build equivalence classes of patch IDs
-  patch_ids <- sort(unique(merge_pairs))
-  patch_ids <- patch_ids[!is.na(patch_ids)]
+  patch_ids <- na.omit(sort(unique(raster::getValues(clumped))))
   
   adj <- lapply(patch_ids, function(x) x)
   names(adj) <- as.character(patch_ids)
@@ -66,23 +76,33 @@ toroidal_clump <- function(grid, directions = 4, reindex = TRUE) {
       stack <- id
       
       while (length(stack) > 0) {
-        cur <- stack[1]
-        stack <- stack[-1]
+        cur <- stack[length(stack)]
+        stack <- stack[-length(stack)]
         
         if (!visited[cur]) {
           visited[cur] <- TRUE
           comp_id[cur] <- comp
-          stack <- c(stack, adj[[cur]])
+          # Add unvisited neighbors to stack
+          for (nbr in adj[[cur]]) {
+            if (!visited[nbr]) {
+              stack <- c(stack, nbr)
+            }
+          }        
         }
       }
     }
   }
   
-  # Reindex (to be added yet!) and reassign patch IDs in raster
+  # Reassign patch IDs in raster
   cl_vals <- raster::values(clumped)
   idx <- !is.na(cl_vals) & as.character(cl_vals) %in% names(comp_id)
   cl_vals[idx] <- comp_id[as.character(cl_vals[idx])]
   raster::values(clumped) <- cl_vals
   
-  clumped
+  # Return result in original format
+  if (!is_raster) {
+    return(raster::as.matrix(clumped))
+  } else {
+    return(clumped)
+  }
 }

@@ -84,6 +84,6 @@ sample_cells <- function(full_state,
                        values_fill = 0,
                        names_prefix = "sp_",
                        names_sort = TRUE)
-  out_wide
+  return(out_wide)
 
 }

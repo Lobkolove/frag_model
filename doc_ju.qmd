@@ -1,0 +1,373 @@
+---
+title: "Model Extensions: Landscape Generation, Fragmentation, and Sampling"
+author: "J. N. Thiem"
+date: today
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    respect-user-color-scheme: true
+    theme: 
+      light: flatly
+      dark: darkly
+    highlight-style: 
+      light: github-light
+      dark: github-dark
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+
+## Overview
+
+This document outlines the major extensions and modifications I made to the model during recent weeks, including new landscape generation methods, fragmentation approach, patch identification, sampling strategies, and spatial curve fitting.
+
+## 1. Landscape Generation
+
+### Background
+
+The original landscape generation function had different limitations. First, it used a package that was no longer maintained, which made it difficult to install and use. Second, the generated landscapes were not toroidal, which could lead to edge effects in the model. To address these issues, I implemented a new landscape generation method using Fractional Brownian Motion (FBM) via Fast Fourier Transform (FFT), which allows for the creation of toroidal landscapes with adjustable autocorrelation. 
+
+### fbm_fft: Fractional Brownian Motion via FFT
+
+```{r}
+#| label: fig-fbm-landscape
+#| fig-cap: "Landscape generated using FFT-based Fractional Brownian Motion (autocorrelation: 0.6). A: The original 128x128 grid. B: The same grid tiled in a 3x3 layout to show toroidal wrapping."
+#| fig-width: 10
+
+library(raster)
+library(viridis)
+source("Model/src/landscape.R")
+
+gr_size <- 128
+ac_amount <- 0.6
+seed_landscape <- 43
+
+full_landscape <- fbm_fft(gr_size = gr_size, ac_amount = ac_amount, seed = seed_landscape)
+
+# Initialize an empty matrix of the new total size
+tiled_matrix <- matrix(NA, 
+                       nrow = gr_size * 3, 
+                       ncol = gr_size * 3)
+
+# Fill the tiled matrix by repeating the original matrix
+for (i in 1:3) {
+  for (j in 1:3) {
+    tiled_matrix[(gr_size * (i - 1) + 1):(gr_size * i), 
+                 (gr_size * (j - 1) + 1):(gr_size * j)] <- as.matrix(full_landscape)
+  }
+}
+
+par(mfrow = c(1, 2), mar = c(1, 2, 1, 1))
+image(full_landscape, col = viridis(100), asp = 1, axes = FALSE, 
+      xlab = "", ylab = "")
+mtext("A", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mar = c(1, 1, 1, 2))
+image(tiled_matrix, col = viridis(100), asp = 1, axes = FALSE, 
+      xlab = "", ylab = "")
+mtext("B", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mfrow = c(1, 1))
+```
+
+## 2. Model Updates
+Landscape generation was replaced with the new FFT-based method throughout the model, specifically during initialisation and during fragmentation (see 3. Fragmentation).
+Some minor updates were made to the model to account for the toroidal nature of the landscape.
+
+### Toroidal disperse
+Agents don't actively move in this model, but they can give birth to new agents, which are usually dispersed to nearby cells. In the original model, if an agent was located near the edge of the landscape, its offspring could be dispersed outside the landscape boundaries, leading to its loss. With the new toroidal landscape, I implemented a wrapping mechanism for the dispersal of offspring, meaning that if an offspring is dispersed outside the boundaries of the landscape, it will reappear on the opposite side. To achieve this, I just added a simple modulo operation to the dispersal coordinates, which wraps around the landscape dimensions when they exceed the boundaries.
+
+::: {.columns}
+
+::: {.column width = "48%"}
+```diff  
+disperse <- function(cur_loc, 
+                     d_sd, 
+                     d_mean) {
+  
+  ... # calculating direction and distance
+
+-  new_x <- cur_loc[1] + 
+-       round(cos(direction) * distance)
+-  new_y <- cur_loc[2] + 
+-       round(sin(direction) * distance)
+
+  new_loc <- c(new_x, new_y)
+  return(new_loc)
+}
+```
+:::
+
+::: {.column width = "4%"}
+:::
+
+::: {.column width = "48%"}
+```diff
+toroidal_disperse <- function(cur_loc, 
+                              d_sd, 
+                              d_mean, 
+                              grid_size) {
+  
+  ... # unchanged 
+
++  raw_x <- cur_loc[1] + 
++      round(cos(direction) * distance)
++  raw_y <- cur_loc[2] + 
++      round(sin(direction) * distance)
+  
++  # wrap to 1..grid_size
++  new_x <- ((raw_x - 1) %% grid_size) + 1
++  new_y <- ((raw_y - 1) %% grid_size) + 1
+  
+  new_loc <- c(new_x, new_y)
+  return(new_loc)
+}
+```
+:::
+
+<!-- end columns -->
+
+### Modularisation
+While adjusting the model to work on a toroidal landscape, I also made some adjustments to the model structure. My main goal was to make the model more modular, by splitting different processes into separate functions. This helped me for debugging and testing, but it can also make the code more readable and easier to maintain in the long run. Also, some functions can potentially be used in other contexts and having them as separate modules can facilitate their reuse.
+
+Originally, the whole simulation process was carried out through a single function, which included the simulation itself (initialisation, ecological processes, fragmentation, etc.), sampling, the calculation of summary statistics and the generation of output tables (and in some cases even figures). I decided to divide this process into three separate steps: 
+
+1. The **model core** (`clean_run()`), which includes initialisation, ecological simulation and fragmentation. This function returns full model states at specified time steps, which can then be used for different purposes (e.g. sampling, patch identification, etc.). Before, model states were only used internally for the simulation logic and included a. the landscape grid, b. the agents list and c. the agents grid. In addition to that, I added a table with the aggregated abundances per species for each cell to the output, which is extremely useful later on for sampling.
+2. The **sampling process** (`sample_cells()`), which takes a full model state as input and applies a specific sampling method to it. So far, I have implemented three sampling methods: random sampling (which was already present in the original model) of a given number of habitat cells, full sampling (all habitat cells) and chessboard sampling (every other habitat cell). The function is designed to be flexible, so that new sampling methods can be easily added in the future. It returns a data frame (either long or wide format) with the sampled cells, their coordinates, abundances for each species as well as information about the habitat patch they belong to (see 4. Patches). 
+3. **Analysis and output generation**, which takes the sampled data frame as input and calculates summary statistics, generates tables and figures, etc. For this part I wouldn't hardcode a single approach, but rather use different functions and scripts, depending on the specific analyses and outputs needed. This can be easily done with a variety of tools already available in R, which are designed for the analysis of species abundance data (e.g. vegan, iNEXT, etc.). So far, I have implemented functions to calculate and visualise distance decay of similarity and spatial sample-based rarefaction curves (see 5. Spatial Curves), but many more can be added in the future. 
+
+## 3. Fragmentation
+### Background
+I didn't change too much in the fragmentation approach, since the original method was already functional. However, I wanted to split the fragmentation process into two steps: the landscape fragmentation itself and the model specific updating of the agents (i.e. removing individuals from matrix cells). By doing so, the fragmentation function can now be used independently of the model, which allows for more flexibility and potential reuse in other contexts. I slightly modified the fragmentation function during this process. The basic idea is the same: a new grid is created, this time using the aimed level of fragmentation as autocorrelation parameter. Given a chosen amount of habitat to retain, this new grid is turned into a binary grid with only two values: habitat and matrix. In the original function, this binary grid then receives the same values as the original landscape, but with the matrix cells set to NA. In the new function, I instead use the binary grid as a mask to set the matrix cells to NA in the original landscape, while keeping the habitat cells unchanged. The result is the same, but I think this approach aligns better with what suggested in the raster-based fragmentation literature, where the fragmentation process is often described as a masking of the original landscape. I also changed a dependency for binarisation, from the landscapetools package to the scales package, which is more widely used and maintained.
+
+### ls_mask: Landscape Fragmentation using Masking Approach
+```{r}
+#| label: fig-fragmentation
+#| fig-cap: "Fragmentation process. A: Original landscape. B: The same landscape after fragmentation using the 'mask' approach (habitat retained: 15%, fragmentation level: 0.4)."
+#| fig-width: 10
+#| fig-height: 4.8
+library(scales)
+source("Model/src/fragmentation.R")
+
+seed_fragment <- 44
+habitat_ratio <- 0.15
+fragmentation_level <- 0.4
+
+fragmented_landscape <- ls_mask(grid = full_landscape, habitat = habitat_ratio,
+                                fragmentation = fragmentation_level, seed = seed_fragment)
+
+par(mfrow = c(1, 2), mar = c(1, 2, 1, 1))
+image(full_landscape, 
+      col = viridis(100), asp = 1, 
+      xaxt = "n", yaxt = "n")
+mtext("A", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mar = c(1, 1, 1, 2))
+image(fragmented_landscape,       
+      col = viridis(100), asp = 1, 
+      xaxt = "n", yaxt = "n")
+mtext("B", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mfrow = c(1, 1))
+```
+
+It is important to note that seed values should be set separately for the landscape generation and fragmentation process. If we use the same seed for both processes, the grid generated for fragmentation will be the same as the one generated for the landscape, which can lead to unintended consequences in the fragmentation pattern. By using different seeds, we ensure that the fragmentation process is independent of the landscape generation, allowing for more realistic and varied fragmentation patterns. This also ensures more control over the single processes, as we can adjust the seeds to create different landscapes and fragmentation patterns without them being directly linked.
+
+### cookie_cutting VS ls_mask
+
+As mentioned in the previous section, the original fragmentation function can only be used within the model, since it directly modifies the landscape and the agents in one step. Therefore, to compare the two fragmentation approaches, I will initialise a model state and then apply both fragmentation methods to it. 
+
+```{r}
+#| label: fragmentation-comparison
+#| results: false
+
+library(data.table)
+source("Model/parameters.R")
+source("Model/src/initialize.R")
+source("Model/src/generate_agents.R")
+source("Model/src/distribute_agents.R")
+
+source("Model/src/cookie_cutting.R")
+source("R/toroidal_clump.R")
+
+# Initialize model
+model_start <- initialize(
+  ac   = ac_amount,
+  nb   = var_par$nb
+)
+
+# extract simulation space, agents grid and agents list
+full_grid    <- model_start$grid
+agents_grid  <- model_start$agents_grid
+agents       <- model_start$agents
+
+# Fragmentation levels
+frag_levels <- seq(0.1, 0.9, by = 0.1)
+
+# Create GIF using gifski
+gifski::save_gif(
+  {
+    # Generate one plot per fragmentation level
+    for (i in seq_along(frag_levels)) {
+    
+        # Output grids for both methods
+        old_grid <- cookie_cutting(grid = full_grid,
+                                agents = agents,
+                                agents_grid = agents_grid,
+                                habitat = habitat_ratio,
+                                fragmentation = frag_levels[i])$grid
+        
+        new_grid <- fragment(grid = full_grid, 
+                            agents = agents, 
+                            agents_grid = agents_grid,
+                            habitat = habitat_ratio, 
+                            fragmentation = frag_levels[i])$grid
+        
+        # Side-by-side plot
+        par(mfrow = c(1, 2), 
+            mar = c(2,2,4,1))
+        image(old_grid, main = "Cookie Cutter", cex.main = 2,
+                asp = 1, col = viridis(100),
+                xaxt = "n", yaxt = "n")
+        par(mar = c(2,1,4,2))
+        image(new_grid, main = "Mask", cex.main = 2,
+                asp = 1, col = viridis(100),
+                xaxt = "n", yaxt = "n")
+        mtext(paste0("Fragmentation = ", frag_levels[i]), 
+                side = 3, line = -2.5, cex = 2, outer = TRUE)
+    }
+  }, gif_file = "frag_comparison.gif", width = 1000, height = 542, delay = 1)
+```
+![Comparison of fragmentation methods across fragmentation levels (0.1 to 0.9). Animation shows cookie-cutting (left) vs. mask approach (right).](frag_comparison.gif){#fig-fragmentation-gif}
+
+## 4. Sampling
+As described in the modularisation section, I implemented a new sampling function called `sample_cells()`, which takes a full model state as input and applies a specific sampling method to it. This function is designed to be flexible, so that new sampling methods can be easily added in the future. It returns a data frame (either long or wide format) with the sampled cells, their coordinates, abundances for each species as well as information about the habitat patch they belong to (see *Patches*).
+For this demonstration, I am using two states which I extracted right after fragmentation from different simulations, one with low fragmentation (0.25) and one with high fragmentation (0.75). I apply three different sampling methods to each state: random sampling of 30 habitat cells, chessboard sampling (every other habitat cell) and full sampling (all habitat cells). The resulting data frames can then be used for different analyses, such as the calculation of spatial curves (see 5. Spatial Curves).
+```{r}
+#| label: tab-sampling-output
+#| tab-cap: "Example of the output from the `sample_cells()` function using the random sampling method (30 random samples). Since the output table is quite large, only the first few rows and the relevant columns are shown. The full data frame (in the wide format) includes a row for each sampled, columns with cell/sample information (e.g. coordinates, patch ID, etc.), some columns with static parameters used in the simulation (e.g. fragmentation level, grid size, etc.) and columns with the abundances of each species in the sampled cells."
+
+source("R/sample_cells.R")
+source("R/toroidal_clump.R")
+
+# Load in saved model states for low and high fragmentation
+low_frag_state <- readRDS("data-raw/states_frag_0.25_sim_6.rds")$post_fragmentation
+high_frag_state <- readRDS("data-raw/states_frag_0.75_sim_6.rds")$post_fragmentation
+
+# Apply sampling methods to low fragmentation state
+low_frag_random <- sample_cells(full_state = low_frag_state, method = "random", n_samples = 30)
+low_frag_chess <- sample_cells(full_state = low_frag_state, method = "chessboard")
+low_frag_full <- sample_cells(full_state = low_frag_state, method = "all")
+
+# Apply sampling methods to high fragmentation state
+high_frag_random <- sample_cells(full_state = high_frag_state, method = "random", n_samples = 30)
+high_frag_chess <- sample_cells(full_state = high_frag_state, method = "chessboard")
+high_frag_full <- sample_cells(full_state = high_frag_state, method = "all")
+
+# Display the first few rows and columns of one of the sampled data frames
+low_frag_random[1:12, 1:12]
+```
+
+### Patches
+Another adjustment I made for the sampling process is related to the identification of habitat patches. In the original version of the model, patches were identified using the `clump()` function from the raster package, which identifies contiguous areas of habitat based on a specified connectivity (e.g. 4 or 8). However, this function does not account for the toroidal nature of the landscape, which can lead to incorrect patch identification for patches that touch the edges of the landscape. To address this issue, I implemented a new patch identification method using a custom function called `toroidal_clump()`, which is designed to work with toroidal landscapes. This function uses a similar approach to `clump()`, but it also checks for connectivity across the edges of the landscape, ensuring that patches are correctly identified even if they span across the boundaries.
+```{r}
+#| label: fig-patches
+#| fig-cap: "Patch identification. **A:** Patches identified using the original `clump()` function. **B:** Patches identified using the new `toroidal_clump()` function. Note that in A, some patches that touch the edges of the landscape are incorrectly split into multiple patches, while in B they are correctly identified as single patches."
+#| fig-width: 10
+#| fig-height: 4.8
+library(raster)
+library(viridis)
+library(Polychrome)
+source("Model/src/landscape.R")
+source("Model/src/fragmentation.R")
+source("R/toroidal_clump.R")
+
+seed_landscape <- 23
+seed_fragment <- 24
+
+# Create landscape
+full_ls <- fbm_fft(gr_size = 128, seed = seed_landscape)
+
+# Fragment landscape
+fragmented_ls <- ls_mask(full_ls, habitat = 0.15, fragmentation = 0.4, seed = seed_fragment)
+
+# Normal clumping
+rclumped <- raster::clump(fragmented_ls, directions = 4, gaps = FALSE)
+r_ids <- unique(na.omit(raster::getValues(rclumped)))
+par(mfrow = c(1, 2), mar = c(1, 2, 1, 1))
+image(rclumped, col = Polychrome::palette36.colors(length(r_ids)),
+      asp = 1, xaxt = "n", yaxt = "n")
+mtext("A", side = 3, line = -2, adj = 0.03, cex = 2)
+mtext("clump()", side = 3, line = -2, adj = 0.95, cex = 1.2)
+
+# Toroidal clumping
+tclumped <- toroidal_clump(fragmented_ls, directions = 4)
+t_ids <- unique(na.omit(raster::getValues(tclumped)))
+par(mar = c(1, 1, 1, 2))
+image(tclumped, col = Polychrome::palette36.colors(length(t_ids)),
+      asp = 1, xaxt = "n", yaxt = "n")
+mtext("B", side = 3, line = -2, adj = 0.03, cex = 2)
+mtext("toroidal_clump()", side = 3, line = -2, adj = 0.95, cex = 1.2)
+```
+
+## 5. Spatial Curves
+As far as the analysis of the model output is concerned, I have implemented two functions to calculate and visualise spatial curves: distance decay of similarity and spatial sample-based rarefaction curves. Both functions are taken from the `spatialbiodiv` package and adapted to work with the model output. 
+I demonstrate the use of these functions with the sampled data extracted from the model output right after fragmentation, meaning I will be showing only geometric effects of fragmentation.
+
+### Distance Decay of Similarity
+```{r}
+#| label: fig-distance-decay
+#| fig-cap: "Distance decay of similarity for low (0.25) and high (0.75) fragmentation levels, using different sampling methods (**A:** 30 randomly chosen habitat cells; **B:** chessboard sampling; **C:** full sampling). The plot shows the fitted curves for each combination of fragmentation level and sampling method, with shaded areas representing the 95% confidence intervals. Each point represents a pairwise comparison between two sampled cells, with the x-axis representing the Euclidean distance between the cells and the y-axis representing their similarity (1 - Bray-Curtis dissimilarity)."
+#| fig-width: 10
+#| fig-height: 15
+#| fig-subcap: c("A", "B", "C")
+
+source("R/dist_decay.R")
+
+# Compute distance decay for each dataset
+dd_low_random <- dist_decay(low_frag_random)
+dd_low_chess <- dist_decay(low_frag_chess)
+dd_low_full <- dist_decay(low_frag_full)
+dd_high_random <- dist_decay(high_frag_random)
+dd_high_chess <- dist_decay(high_frag_chess)
+dd_high_full <- dist_decay(high_frag_full)
+
+# Plot distance decay curves
+par(mfrow = c(3, 2), mar = c(4, 4, 2, 1))
+plot(dd_low_random)
+plot(dd_high_random)
+plot(dd_low_chess)
+plot(dd_high_chess)
+plot(dd_low_full)
+plot(dd_high_full)
+```
+
+### Spatial Sample-Based Rarefaction Curves
+```{r}
+#| label: fig-sSBR
+#| fig-cap: "Spatial sample-based rarefaction curves for low fragmentation (0.25) on the left and high fragmentation (0.75) on the right, using different sampling methods (**A:** 30 randomly chosen habitat cells; **B:** chessboard sampling; **C:** full sampling). Faded curves represent individual samples, while the bold curve represents the average rarefaction curve across all samples." 
+#| fig-width: 10
+#| fig-height: 15
+#| fig-subcap: c("A", "B", "C")
+library(dplyr)
+source("R/sSBR.R")
+
+# Compute sSBR for each dataset
+sSBR_low_random <- sSBR(low_frag_random)
+sSBR_low_chess <- sSBR(low_frag_chess)
+sSBR_low_full <- sSBR(low_frag_full)
+sSBR_high_random <- sSBR(high_frag_random)
+sSBR_high_chess <- sSBR(high_frag_chess)
+sSBR_high_full <- sSBR(high_frag_full)
+
+# Plot sSBR curves
+par(mfrow = c(3, 2), mar = c(4, 4, 2, 1))
+plot(sSBR_low_random)
+plot(sSBR_high_random)
+plot(sSBR_low_chess)
+plot(sSBR_high_chess)
+plot(sSBR_low_full)
+plot(sSBR_high_full)
+```

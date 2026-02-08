@@ -65,8 +65,7 @@ for (i in seq_along(frag_levels)) {
                                 agents = agents, 
                                 agents_grid = agents_grid,
                                 habitat = habitat_ratio, 
-                                fragmentation = frag_levels[i],
-                                seed = seed)
+                                fragmentation = frag_levels[i])
 }
 
 

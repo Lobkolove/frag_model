@@ -63,15 +63,15 @@ sSBR <- function(model_sample,
   
   # Extract species data as presence–absence, drop empty species
   pa_table <- model_sample %>%
-    select(starts_with("sp")) %>%
-    select(where(~ sum(.x) > 0)) %>%
-    mutate(across(everything(), ~ (.x > 0) * 1))
+    dplyr::select(starts_with("sp")) %>%
+    dplyr::select(where(~ sum(.x) > 0)) %>%
+    dplyr::mutate(across(everything(), ~ (.x > 0) * 1))
   
   n <- nrow(pa_table)
   
   # Extract coordinates
   coords <- model_sample %>%
-    select(loc_x, loc_y)
+    dplyr::select(x_loc, y_loc)
   
   # Pairwise distances
   pair_dist <- as.matrix(stats::dist(coords))
@@ -162,8 +162,7 @@ plot.sSBR <- function(sSBR_object,
                  ylim = range(dat$S, na.rm = TRUE),
                  xlab = "Euclidean distance",
                  ylab = "Cumulative species richness",
-                 las = 1,
-                 main = "Spatially constrained rarefaction")
+                 las = 1)
   
   # Individual curves (one line per sample)
   for (i in unique(dat$id)) {
@@ -183,7 +182,7 @@ plot.sSBR <- function(sSBR_object,
   # Prediction line
   graphics::lines(sm$distance,
                   sm$S,
-                  col = darken(col, amount = .4),
+                  col = colorspace::darken(col, amount = .4),
                   lwd = 3)
   
   invisible(sSBR_object)

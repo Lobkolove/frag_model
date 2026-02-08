@@ -4,7 +4,7 @@
 #'
 #' @param model_sample A data frame of model sample output with columns:
 #'                     - species abundances (prefixed with "sp")  
-#'                     - coordinates (loc_x, loc_y)
+#'                     - coordinates (x_loc, y_loc)
 #' @param binary Logical; if TRUE, abundance data are converted to presence/absence before computing similarity.
 #' @param method Character; (dis)similarity index to use (see \code{\link[vegan]{vegdist}}).
 #'
@@ -83,8 +83,8 @@ plot.dist_decay <- function(dd_object,
   method <- attr(dd_object, "dissimilarity_method")
   
   # Set transparency level based on number of observations
-  # alpha <- ifelse(nrow(dat) > 1000, .1, .5)
-  alpha <- 0.05 + 200 / nrow(dat)
+  a <- 1 / sqrt(nrow(dat) / 300)
+  alpha <- pmax(0.05, pmin(1, a))
   
   # Scatterplot
   graphics::plot(dat$distance,
@@ -93,8 +93,7 @@ plot.dist_decay <- function(dd_object,
                  pch = 16,
                  cex = .75,
                  xlab = "Euclidean distance",
-                 ylab = paste0("Similarity (1 - ", method, " dissimilarity)"),
-                 main = "Distance decay")
+                 ylab = paste0("Similarity (1 - ", method, " dissimilarity)"))
   
   
   # Confidence ribbon

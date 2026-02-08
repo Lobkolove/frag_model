@@ -18,7 +18,7 @@ toroidal_clump <- function(grid, directions = 4) {
   # Standard clumping
   clumped <- raster::clump(rast, directions = directions, gaps = FALSE)
   
-  cl_mat <- as.matrix(clumped)
+  cl_mat <- raster::as.matrix(clumped)
   nrow   <- nrow(cl_mat)
   ncol   <- ncol(cl_mat)
   

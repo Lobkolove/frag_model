@@ -39,7 +39,7 @@ states <- clean_run(
   var_par = var_par,
   switch = switch,
   sim_id = sim_id,
-  record_steps = c("pre_fragmentation", "post_fragmentation"),
+  record_steps = c("post_fragmentation"),
   seed = master_seed
 ) 
 

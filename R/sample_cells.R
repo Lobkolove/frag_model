@@ -1,3 +1,65 @@
+#' Sample habitat cells from an ABM state
+#'
+#' Extracts a subset of habitat cells from a model state object and returns
+#' per-cell species abundances along with spatial coordinates, patch
+#' information, and simulation metadata. Cells can be sampled exhaustively,
+#' randomly, or using a deterministic chessboard pattern.
+#'
+#' @param full_state A named list representing the current ABM state.
+#'   At minimum, it must contain:
+#'   \itemize{
+#'     \item \code{grid}: a \code{RasterLayer} defining habitat (non-\code{NA})
+#'       and non-habitat (\code{NA}) cells.
+#'     \item \code{ss_abund}: a data table with columns
+#'       \code{x_loc}, \code{y_loc}, \code{species_id}, and \code{n}, giving
+#'       species abundances per cell.
+#'     \item \code{sim_id}, \code{master_seed}, \code{step},
+#'       \code{grid_size}, \code{fragmentation}: scalar metadata values.
+#'   }
+#'
+#' @param method Sampling method used to select habitat cells. One of:
+#'   \describe{
+#'     \item{\code{"all"}}{All habitat cells are returned.}
+#'     \item{\code{"random"}}{A random subset of habitat cells is returned
+#'       (sampling without replacement).}
+#'     \item{\code{"chessboard"}}{Every other habitat cell is selected based on
+#'       the parity of row and column indices.}
+#'   }
+#'
+#' @param n_samples Integer number of habitat cells to sample when
+#'   \code{method = "random"}. Must be provided for random sampling.
+#'
+#' @param format Output format. Either \code{"long"} (one row per
+#'   cell–species combination) or \code{"wide"} (one row per sampled cell, one
+#'   column per species).
+#'
+#' @param seed Optional integer seed for reproducible random sampling.
+#'
+#' @details
+#' Cell coordinates (\code{x_loc}, \code{y_loc}) refer to row and column indices
+#' of the underlying raster grid, as returned by
+#' \code{raster::rowColFromCell()}.
+#'
+#' Patch identifiers and patch sizes are computed using
+#' \code{toroidal_clump()}, which assigns patch IDs while accounting for the
+#' toroidal nature of the grid.
+#'
+#' In wide format, missing species abundances are filled with zeros.
+#'
+#' @return A data frame containing sampled cells and associated data.
+#'   The exact structure depends on \code{format}:
+#'   \itemize{
+#'     \item \code{"long"}: one row per sampled cell and species.
+#'     \item \code{"wide"}: one row per sampled cell, with species abundances
+#'       spread across columns prefixed with \code{"sp_"}.
+#'   }
+#'
+#' @importFrom rlang arg_match
+#' @importFrom raster getValues rowColFromCell freq
+#' @importFrom dplyr left_join mutate
+#' @importFrom tidyr pivot_wider
+#'
+#' @export
 sample_cells <- function(full_state,
                          method = c("all", "random", "chessboard"),
                          n_samples = NULL,

@@ -30,7 +30,7 @@ dist_decay <- function(model_sample,
   coords <- model_sample %>% 
     dplyr::select(x_loc, y_loc) 
   
-  d <- stats::dist(coords) # spatial Euclidean distance
+  d <- stats::dist(coords) # spatial Euclidean distances
   
   similarity <- 1 - vegan::vegdist(comm, 
                                    method = method,
@@ -43,8 +43,8 @@ dist_decay <- function(model_sample,
   # order by increasing distance
   out_dat <- out_dat[order(out_dat$distance), ]
   
-  # Toroidal cutoff: distances beyond half the maximum are not meaningful
-  d_cut <- max(out_dat$distance, na.rm = TRUE) / 2
+  # Toroidal cutoff: distances beyond half the grid size are not meaningful
+  d_cut <- model_sample$grid_size[1] / 2
   out_dat <- out_dat %>%
     dplyr::filter(distance <= d_cut)
   
@@ -100,7 +100,7 @@ plot.dist_decay <- function(dd_object,
   graphics::polygon(
     c(sm$distance, rev(sm$distance)),
     c(sm$simi_low, rev(sm$simi_high)),
-    col = adjustcolor(col, alpha.f = .25),
+    col = colorspace::adjust_transparency(col, alpha = 0.25),
     border = NA
   )
   

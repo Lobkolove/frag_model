@@ -12,7 +12,7 @@
 #'
 #' @param model_sample A data frame corresponding to *sample-level*
 #'   model output, containing species abundance columns (prefixed with
-#'   `"sp"`) and spatial coordinates (`loc_x`, `loc_y`) for each sampled
+#'   `"sp"`) and spatial coordinates (`x_loc`, `y_loc`) for each sampled
 #'   location.
 #' @param distvec Optional numeric vector of spatial distances at which
 #'   the rarefaction curve should be interpolated. If `NULL`, a regular
@@ -109,9 +109,8 @@ sSBR <- function(model_sample,
   
   out_dat <- out_dat[order(out_dat$id, out_dat$distance), ]
   
-  # Toroidal cutoff: distances beyond half the maximum are not meaningful
-  d_cut <- max(out_dat$distance, na.rm = TRUE) / 2
-  
+  # Toroidal cutoff: distances beyond half the grid_size are not meaningful
+  d_cut <- model_sample$grid_size[1] / 2
   out_dat <- out_dat %>%
     dplyr::filter(distance <= d_cut)
   
@@ -153,8 +152,9 @@ plot.sSBR <- function(sSBR_object,
   dat <- sSBR_object$data
   sm  <- sSBR_object$smooth
   
-  # Set transparency level for lines based on number of observations
-  alpha <- ifelse(nrow(dat) > 1000, .2, .5)
+  # Set transparency level for single lines based on number of observations
+  a <- 1 / sqrt(nrow(dat) / 300)
+  alpha <- pmax(0.05, pmin(0.75, a))
   
   # Base plot
   graphics::plot(NA,

@@ -55,7 +55,8 @@
 #' @noRd
 
 sSBR <- function(model_sample, 
-                 distvec = NULL) {
+                 distvec = NULL,
+                 dist_type = c("euclidean", "toroidal")) {
   
   # Drop empty species
   model_sample <- model_sample %>%
@@ -74,7 +75,12 @@ sSBR <- function(model_sample,
     dplyr::select(x_loc, y_loc)
   
   # Pairwise distances
-  pair_dist <- as.matrix(stats::dist(coords))
+  if (dist_type == "euclidean") {
+    pair_dist <- stats::dist(coords) # euclidean distances
+  } else if (dist_type == "toroidal") {
+    pair_dist <- toroidal_dist(coords, model_sample$grid_size[1]) # toroidal distances 
+  }
+  pair_dist <- as.matrix(pair_dist)
   
   # Storage
   scr_mat  <- matrix(0, n, n)
@@ -97,7 +103,6 @@ sSBR <- function(model_sample,
     comm_bool <- (comm_ordered == 0) * 1
     rich <- apply(comm_bool, 2, cumprod)
 
-    
     scr_mat[i, ]  <- ncol(pa_table) - rowSums(rich)
     dist_mat[i, ] <- dist_to_site[order(dist_to_site)]
   }
@@ -110,10 +115,11 @@ sSBR <- function(model_sample,
   out_dat <- out_dat[order(out_dat$id, out_dat$distance), ]
   
   # Toroidal cutoff: distances beyond half the grid_size are not meaningful
-  d_cut <- model_sample$grid_size[1] / 2
-  out_dat <- out_dat %>%
-    dplyr::filter(distance <= d_cut)
-  
+  if (dist_type == "euclidean") {
+    d_cut <- model_sample$grid_size[1] / 2
+    out_dat <- out_dat %>%
+      dplyr::filter(distance <= d_cut)
+  }
   
   # Fit model - GAM with monotonously increasing constraint
   scam1 <- scam::scam(S ~ s(distance, bs = "mpi"),
@@ -141,6 +147,7 @@ sSBR <- function(model_sample,
               smooth = out_pred)    # distance, S, CI
   
   class(out) <- "sSBR"
+  attr(out, "distance_type") <- dist_type
   return(out)
   
 }
@@ -151,6 +158,8 @@ plot.sSBR <- function(sSBR_object,
   
   dat <- sSBR_object$data
   sm  <- sSBR_object$smooth
+
+  dist_type <- attr(sSBR_object, "distance_type")
   
   # Set transparency level for single lines based on number of observations
   a <- 1 / sqrt(nrow(dat) / 300)
@@ -160,7 +169,7 @@ plot.sSBR <- function(sSBR_object,
   graphics::plot(NA,
                  xlim = range(dat$distance, na.rm = TRUE),
                  ylim = range(dat$S, na.rm = TRUE),
-                 xlab = "Euclidean distance",
+                 xlab = paste0(dist_type, " distance"),
                  ylab = "Cumulative species richness",
                  las = 1)
   

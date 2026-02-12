@@ -1,57 +1,73 @@
 # Demo script for distance decay and sSBR functions
-library(here)
 library(dplyr)
 library(vegan)
 library(mgcv)
 library(scam)
 
-source(here("R", "dist_decay.R"))
-source(here("R", "sSBR.R"))
-# source(here("R", "toroidal_dist.R"))
+source("R/sample_cells.R")
+source("R/toroidal_clump.R")
+source("R/dist_decay.R")
+source("R/sSBR.R")
+source("R/toroidal_dist.R")
 
 
 # 0. Setup ----------------------------------------------------------------
 
-# Read in data with different fragmentation levels and sampling methods
+# Read in full states object and extract post-fragmentation states
+states_high <- readRDS("data-raw/states_frag_0.75_sim_6.rds")
+states_low <- readRDS("data-raw/states_frag_0.25_sim_6.rds")
 
-low_rand <- read.csv("data-raw/post_frag_low_sample_ran.csv")
-low_full <- read.csv("data-raw/post_frag_low_sample_full.csv")
-low_cb <- read.csv("data-raw/post_frag_low_sample_cb.csv")
+post_frag_high <- states_high$post_fragmentation
+post_frag_low <- states_low$post_fragmentation
 
-high_rand <- read.csv("data-raw/post_frag_high_sample_ran.csv")
-high_full <- read.csv("data-raw/post_frag_high_sample_full.csv")
-high_cb <- read.csv("data-raw/post_frag_high_sample_cb.csv")
-
+# Create samples for distance decay and sSBR
+high_rand <- sample_cells(post_frag_high, method = "random", n_samples = 30)
+low_rand <- sample_cells(post_frag_low, method = "random", n_samples = 30)
 
 # 1. Distance decay -------------------------------------------------------
   
 # Compute distance decays
-dd_low <- dist_decay(low_rand, method = "bray")
-dd_high <- dist_decay(high_rand, method = "bray")
+dd_low_eu <- dist_decay(low_rand, method = "bray")
+dd_low_tor <- dist_decay(low_rand, method = "bray", dist_type = "toroidal")
+dd_high_eu <- dist_decay(high_rand, method = "bray")
+dd_high_tor <- dist_decay(high_rand, method = "bray", dist_type = "toroidal")
 
 # Plot distance decays
-par(mfrow = c(1, 2))
-plot(dd_low, col = "darkslategrey")
+par(mfrow = c(2, 2))
+plot(dd_low_eu, col = "darkslategrey")
 mtext("Low fragmentation", side = 3, line = 0.5, 
       cex = 0.9, col = "darkslategrey")
-plot(dd_high, col = "steelblue4")
+plot(dd_high_eu, col = "steelblue4")
 mtext("High fragmentation", side = 3, line = 0.5, 
       cex = 0.9, col = "steelblue4")
-  
-
+plot(dd_low_tor, col = "darkslategrey")
+mtext("Low fragmentation", side = 3, line = 0.5, 
+      cex = 0.9, col = "darkslategrey")
+plot(dd_high_tor, col = "steelblue4")
+mtext("High fragmentation", side = 3, line = 0.5, 
+      cex = 0.9, col = "steelblue4")  
 
 
 # 2. Spatially constrained sample based rarefaction (sSBR) ----------------
 
 # Compute spatial rarefaction
-src_low <- sSBR(low41)
-src_high <- sSBR(high41)
+src_low_eu <- sSBR(low_rand, dist_type = "euclidean")
+src_low_tor <- sSBR(low_rand, dist_type = "toroidal")
+src_high_eu <- sSBR(high_rand, dist_type = "euclidean")
+src_high_tor <- sSBR(high_rand, dist_type = "toroidal")
 
 # Plot rarefaction curves
-plot(src_low, col = "darkslategrey")
+par(mfrow = c(2, 2))
+plot(src_low_eu, col = "darkslategrey")
 mtext("Low fragmentation", side = 3, line = 0.5, 
       cex = 0.9, col = "darkslategrey")
-plot(src_high, col = "steelblue4")
+plot(src_high_eu, col = "steelblue4")
+mtext("High fragmentation", side = 3, line = 0.5, 
+      cex = 0.9, col = "steelblue4")
+plot(src_low_tor, col = "darkslategrey")
+mtext("Low fragmentation", side = 3, line = 0.5, 
+      cex = 0.9, col = "darkslategrey")
+plot(src_high_tor, col = "steelblue4")
 mtext("High fragmentation", side = 3, line = 0.5, 
       cex = 0.9, col = "steelblue4")
 

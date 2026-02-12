@@ -10,29 +10,21 @@
 toroidal_dist <- function(coords, grid_size) {
   
   coords <- as.matrix(coords)
-  n <- nrow(coords)
-  x <- coords[, 1]
-  y <- coords[, 2]
   
-  dx <- abs(outer(x, x, "-"))
+  # Compute all pairwise differences
+  dx <- abs(outer(coords[, 1], coords[, 1], "-"))
+  dy <- abs(outer(coords[, 2], coords[, 2], "-"))
+  
+  # Apply toroidal wrapping by taking the minimum distance considering wrap-around
   dx <- pmin(dx, grid_size - dx)
-  
-  dy <- abs(outer(y, y, "-"))
   dy <- pmin(dy, grid_size - dy)
   
-  dmat <- sqrt(dx^2 + dy^2)
+  # Compute distances
+  dist_matrix <- sqrt(dx^2 + dy^2)
   
-  # extract upper triangle in dist() order
-  d <- dmat[upper.tri(dmat)]
-  
-  structure(
-    d,
-    Size = n,
-    Labels = rownames(coords),
-    Diag = FALSE,
-    Upper = FALSE,
-    method = "toroidal",
-    call = match.call(),
-    class = "dist"
-  )
+  # Extract lower triangle as dist object
+  t_dist <- as.dist(dist_matrix)
+
+  return(t_dist)
+
 }

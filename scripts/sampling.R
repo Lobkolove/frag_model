@@ -44,7 +44,7 @@ states <- clean_run(
 ) 
 
 # Export as RDS
-filepath <- paste0("data-raw/states_frag_", var_par$frag, "_sim_", sim_id)
+filepath <- paste0("data-raw/states_frag_", var_par$frag, "_sim_", sim_id, ".rds")
 saveRDS(states, filepath)
 
   ## 0.2 - Read in previously exported states ####

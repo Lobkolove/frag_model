@@ -58,6 +58,8 @@ sSBR <- function(model_sample,
                  distvec = NULL,
                  dist_type = c("euclidean", "toroidal")) {
   
+  dist_type <- match.arg(dist_type)
+  
   # Drop empty species
   model_sample <- model_sample %>%
     filter(rowSums(across(starts_with("sp"))) > 0)

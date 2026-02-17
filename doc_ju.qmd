@@ -370,7 +370,9 @@ dd_data_all <- bind_rows(
   dd_high_random$data %>% mutate(fragmentation = "High", sampling = "Random"),
   dd_high_chess$data %>% mutate(fragmentation = "High", sampling = "Chessboard"),
   dd_high_full$data %>% mutate(fragmentation = "High", sampling = "Full")
-)
+) |> 
+  mutate(fragmentation = factor(fragmentation, levels = c("Low", "High")),
+         sampling = factor(sampling, levels = c("Random", "Chessboard", "Full")))
 
 dd_smooth_all <- bind_rows(
   dd_low_random$smooth %>% mutate(fragmentation = "Low", sampling = "Random"),
@@ -379,7 +381,9 @@ dd_smooth_all <- bind_rows(
   dd_high_random$smooth %>% mutate(fragmentation = "High", sampling = "Random"),
   dd_high_chess$smooth %>% mutate(fragmentation = "High", sampling = "Chessboard"),
   dd_high_full$smooth %>% mutate(fragmentation = "High", sampling = "Full")
-)
+) |> 
+  mutate(fragmentation = factor(fragmentation, levels = c("Low", "High")),
+         sampling = factor(sampling, levels = c("Random", "Chessboard", "Full"))) 
 
 # Plot distance decay curves using ggplot2
 pal <- c("cyan4", "midnightblue", "violetred4")
@@ -424,7 +428,9 @@ sSBR_data_all <- bind_rows(
   sSBR_high_random$data %>% mutate(fragmentation = "High", sampling = "Random"),
   sSBR_high_chess$data %>% mutate(fragmentation = "High", sampling = "Chessboard"),
   sSBR_high_full$data %>% mutate(fragmentation = "High", sampling = "Full")
-)
+) |> 
+  mutate(fragmentation = factor(fragmentation, levels = c("Low", "High")),
+         sampling = factor(sampling, levels = c("Random", "Chessboard", "Full")))
 
 sSBR_smooth_all <- bind_rows(
   sSBR_low_random$smooth %>% mutate(fragmentation = "Low", sampling = "Random"),
@@ -433,29 +439,35 @@ sSBR_smooth_all <- bind_rows(
   sSBR_high_random$smooth %>% mutate(fragmentation = "High", sampling = "Random"),
   sSBR_high_chess$smooth %>% mutate(fragmentation = "High", sampling = "Chessboard"),
   sSBR_high_full$smooth %>% mutate(fragmentation = "High", sampling = "Full")
-)
+) |> 
+  mutate(fragmentation = factor(fragmentation, levels = c("Low", "High")),
+         sampling = factor(sampling, levels = c("Random", "Chessboard", "Full")))
+
+
+pal <- c("cyan4", "midnightblue", "violetred4")
 
 # Plot spatial rarefaction curves using ggplot2
-pal <- c("cyan4", "midnightblue", "violetred4")
-ggplot(sSBR_data_all, aes(x = distance, y = S, color = sampling)) +
-  geom_line(alpha = 0.1, aes(group = id)) +
-  geom_line(data = sSBR_smooth_all, linewidth = 1) +
-  geom_ribbon(data = sSBR_smooth_all, aes(x = distance, ymin = S_low, ymax = S_high), 
-              alpha = 0.2, inherit.aes = FALSE) +
-  scale_color_manual(values = pal) +
-  facet_grid(rows = vars(factor(sampling, levels = c("Random", "Chessboard", "Full"))), 
-             cols = vars(factor(fragmentation, levels = c("Low", "High")))) +
-  labs(x = "Euclidean Distance",
-       y = "Similarity (1 - Bray-Curtis Dissimilarity)") +
-  guides(color = "none") +
-  theme_bw()
+# ggplot(sSBR_data_all, aes(x = distance, y = S, color = sampling)) +
+#   geom_line(alpha = 0.1, aes(group = id)) +
+#   geom_line(data = sSBR_smooth_all, linewidth = 1) +
+#   geom_ribbon(data = sSBR_smooth_all, aes(x = distance, ymin = S_low, ymax = S_high), 
+#               alpha = 0.2, inherit.aes = FALSE) +
+#   scale_color_manual(values = pal) +
+#   facet_grid(rows = vars(sampling), 
+#              cols = vars(fragmentation)) +
+#   labs(x = "Euclidean Distance",
+#        y = "Similarity (1 - Bray-Curtis Dissimilarity)") +
+#   guides(color = "none") +
+#   theme_bw()
 
-# Plot sSBR curves
-# par(mfrow = c(3, 2), mar = c(4, 4, 2, 1))
-# plot(sSBR_low_random, pal[1])
-# plot(sSBR_high_random, pal[1])
-# plot(sSBR_low_chess, pal[2])
-# plot(sSBR_high_chess, pal[2])
-# plot(sSBR_low_full, pal[3])
-# plot(sSBR_high_full, pal[3])
+# Plot only average curves low vs high fragmentation
+ggplot(sSBR_smooth_all, aes(x = distance, y = S, color = fragmentation)) +
+    geom_line(linewidth = 1) +
+    geom_ribbon(aes(ymin = S_low, ymax = S_high, fill = fragmentation), 
+                alpha = 0.6) +
+    scale_fill_manual(values = pal[2:3]) +
+    scale_color_manual(values = pal[2:3]) +
+    facet_wrap(~sampling) +
+    labs(x = "Euclidean Distance", y = "Species Richness (S)") +
+    theme_bw()
 ```

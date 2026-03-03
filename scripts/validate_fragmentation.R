@@ -6,7 +6,6 @@ library(purrr)
 library(viridis)
 source("Model/parameters.R")
 source("Model/src/initialize.R")
-source("Model/src/generate_grid.R")
 source("Model/src/landscape.R")
 source("Model/src/generate_agents.R")
 source("Model/src/distribute_agents.R")
@@ -40,7 +39,9 @@ agents_grid  <- model_start$agents_grid
 agents       <- model_start$agents
 
 # Visualise full habitat grid
-raster::image(full_grid, asp = 1, col = viridis(100))
+par(mar = c(0, 0, 0, 0))
+raster::image(full_grid, asp = 1, axes = F, col = viridis(100))
+dev.off()
 
 
 # 1. Generate outputs -----------------------------------------------------
@@ -101,6 +102,33 @@ for (i in seq_along(frag_levels)) {
   mtext(paste0("Fragmentation = ", frag_levels[i]), 
         side = 3, line = -1.5, cex = 1.2, outer = TRUE)
 }
+
+# Export as GIF
+gifski::save_gif({
+  for (i in seq_along(frag_levels)) {
+    
+    old_grid <- results$cookie_cutter[[i]]$grid
+    new_grid <- results$mask[[i]]$grid
+
+    par(mfrow = c(1, 2), mar = c(2,2,4,1))
+    image(old_grid, main = "Cookie Cutter", cex.main = 3,
+         asp = 1, col = viridis(100), 
+         xaxt = "n", yaxt = "n", 
+         axes = FALSE, legend = FALSE)
+    image(is.na(old_grid), col = c(NA, "grey90"), add = TRUE)
+    box(col = "black", lwd = 1)
+    par(mar = c(2,1,4,2))
+    image(new_grid, main = "Mask", cex.main = 3,
+         asp = 1, col = viridis(100), 
+         xaxt = "n", yaxt = "n", 
+         axes = FALSE, legend = FALSE)
+    image(is.na(new_grid), col = c(NA, "grey90"), add = TRUE)
+    box(col = "black", lwd = 1)
+    mtext(paste0("Fragmentation = ", frag_levels[i]), 
+          side = 3, line = -2.5, cex = 3, outer = TRUE)
+    
+  }
+}, gif_file = "pics/frag_comparison.gif", width = 1620, height = 854, delay = 1)
 
   ## 2.2 Compare patches ####
 

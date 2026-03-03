@@ -193,3 +193,56 @@ for (samp in sampling_methods) {
 }
 
 
+# Example from Quarto ----------------------------------------------------
+
+library(dplyr)
+library(ggplot2)
+library(raster)
+library(viridis)
+source("R/sample_cells.R")
+source("R/toroidal_clump.R")
+
+# Load in saved model states for low and high fragmentation
+low_frag_state <- readRDS("data-raw/states_frag_0.25_sim_6.rds")$post_fragmentation
+high_frag_state <- readRDS("data-raw/states_frag_0.75_sim_6.rds")$post_fragmentation
+
+# Extract landscapes from full states
+low_frag_grid <- low_frag_state$grid
+high_frag_grid <- high_frag_state$grid
+
+# Visualise landscapes
+par(mfrow = c(1, 2), mar = c(1, 2, 1, 1))
+image(low_frag_grid, 
+      col = viridis(100), asp = 1, 
+      xaxt = "n", yaxt = "n")
+mtext("A", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mar = c(1, 1, 1, 2))
+image(high_frag_grid,       
+      col = viridis(100), asp = 1, 
+      xaxt = "n", yaxt = "n")
+mtext("B", side = 3, line = -3, adj = 0.05, cex = 2)
+par(mfrow = c(1, 1))
+
+# Export landscapes to file separately
+png("pics/SC_low_frag_grid.png", width = 1200, height = 1200)
+par(mar = c(0, 0, 0, 0))
+image(low_frag_grid, col = viridis(100), asp = 1, axes = FALSE)
+image(is.na(low_frag_grid), col = c(NA, "grey90"), asp = 1, add = TRUE)
+dev.off()
+png("pics/SC_high_frag_grid.png", width = 1200, height = 1200)
+par(mar = c(0, 0, 0, 0))
+image(high_frag_grid, col = viridis(100), asp = 1, axes = FALSE)
+image(is.na(high_frag_grid), col = c(NA, "grey90"), asp = 1, add = TRUE)
+dev.off()
+
+# Apply sampling methods to low fragmentation state
+low_frag_random <- sample_cells(full_state = low_frag_state, method = "random", n_samples = 30)
+low_frag_chess <- sample_cells(full_state = low_frag_state, method = "chessboard")
+low_frag_full <- sample_cells(full_state = low_frag_state, method = "all")
+
+# Apply sampling methods to high fragmentation state
+high_frag_random <- sample_cells(full_state = high_frag_state, method = "random", n_samples = 30)
+high_frag_chess <- sample_cells(full_state = high_frag_state, method = "chessboard")
+high_frag_full <- sample_cells(full_state = high_frag_state, method = "all")
+
+

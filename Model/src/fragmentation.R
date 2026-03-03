@@ -44,12 +44,15 @@ ls_mask <- function(grid,
 }
 
 
-fragment <- function(grid,
-                     agents,
-                     agents_grid,
+fragment <- function(full_state,
                      habitat,
                      fragmentation,
                      ...) {
+  
+  grid <- full_state$grid
+  agents <- full_state$agents
+  agents_grid <- full_state$agents_grid
+  ss_abund <- full_state$ss_abund
   
   # Apply fragmentation to grid
   fragmented_grid <- ls_mask(grid = grid,
@@ -68,9 +71,28 @@ fragment <- function(grid,
   
   # Update agents_grid (turn matrix cells to NA)
   agents_grid[is.na(fragmented_grid)] <- NA
+
+  # Update ss_abund (turn matrix cells to NA)
+  ss_abund <- ss_abund %>%
+    dplyr::mutate(
+      habitat = !is.na(fragmented_grid[cbind(x_loc, y_loc)]),
+      n = ifelse(habitat, n, NA)
+    ) %>%
+    dplyr::select(-habitat)
   
-  return_list <- list(grid = fragmented_grid,
-                      agents = agents,
-                      agents_grid = agents_grid)
+  return_list <- list(      
+    sim_id        = full_state$sim_id,
+    master_seed   = full_state$master_seed,
+    step          = full_state$step + 1,
+    step_label    = "post_fragmentation",
+    fragmentation = fragmentation,
+    ac_amount     = full_state$ac_amount,
+    habitat       = habitat,
+    grid_size     = full_state$grid_size,
+    grid          = fragmented_grid,
+    agents        = agents,
+    agents_grid   = agents_grid,
+    ss_abund      = ss_abund
+  )
   return(return_list)
 }

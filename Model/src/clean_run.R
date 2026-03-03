@@ -61,6 +61,7 @@ clean_run <- function(mod_par,
       grid_size     = mod_par$grid_size,
       grid          = grid,
       agents        = agents,
+      agents_grid   = agents_grid,
       ss_abund      = ss_abund
     )
   }
@@ -114,14 +115,14 @@ clean_run <- function(mod_par,
 
   # Fragmentation event -----------------------------------------------------
 
-  
-  frag_out <- fragment(
-    grid        = grid,
-    agents      = agents,
-    agents_grid = agents_grid,
-    hab         = var_par$hab,
-    frag        = var_par$frag
+  current_state <- record_state(
+    step_label  = "pre_fragmentation",
+    step_number = steps_1
   )
+
+  frag_out <- fragment(full_state = current_state,
+                       habitat = var_par$hab,
+                       fragmentation = var_par$frag)
   
   grid        <- frag_out$grid
   agents      <- frag_out$agents
@@ -133,10 +134,7 @@ clean_run <- function(mod_par,
   
   # Record immediately after fragmentation
   if ("post_fragmentation" %in% record_steps) {
-    state_list[["post_fragmentation"]] <- record_state(
-      step_label  = "post_fragmentation",
-      step_number = steps_1 + 1
-    )
+    state_list[["post_fragmentation"]] <- frag_out
   }
   
 

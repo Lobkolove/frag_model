@@ -31,7 +31,7 @@ source("R/dist_decay.R")
 
   ## 0.1 - Generate new state ####
 
-sim_id <- 6
+sim_id <- 7
 
 # Run dynamic model and get full state right after fragmentation
 states <- clean_run(
@@ -39,7 +39,7 @@ states <- clean_run(
   var_par = var_par,
   switch = switch,
   sim_id = sim_id,
-  record_steps = c("post_fragmentation"),
+  record_steps = c("pre_fragmentation"),
   seed = master_seed
 ) 
 

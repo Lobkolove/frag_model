@@ -53,12 +53,12 @@
 #' @export
 #' 
 #' @noRd
-
 sSBR <- function(model_sample, 
                  distvec = NULL,
-                 dist_type = c("euclidean", "toroidal")) {
+                 method = c("euclidean", "toroidal", "area"),
+                 cutoff = TRUE) {
   
-  dist_type <- match.arg(dist_type)
+  method <- match.arg(method)
   
   # Drop empty species
   model_sample <- model_sample %>%
@@ -76,65 +76,117 @@ sSBR <- function(model_sample,
   coords <- model_sample %>%
     dplyr::select(x_loc, y_loc)
   
-  # Pairwise distances
-  if (dist_type == "euclidean") {
-    pair_dist <- stats::dist(coords) # euclidean distances
-  } else if (dist_type == "toroidal") {
-    pair_dist <- toroidal_dist(coords, model_sample$grid_size[1]) # toroidal distances 
+  # Pairwise distances (for euclidean/toroidal)
+  if (method %in% c("euclidean", "toroidal")) {
+    if (method == "euclidean") {
+      pair_dist <- stats::dist(coords) # euclidean distances
+    } else if (method == "toroidal") {
+      pair_dist <- toroidal_dist(coords, model_sample$grid_size[1]) # toroidal distances 
+    }
+    pair_dist <- as.matrix(pair_dist)
+    
+    # Storage
+    effort_mat <- matrix(0, n, n)
+    
+    for (i in 1:n) {
+      dist_to_site <- pair_dist[i, ]
+      
+      # Randomize order to avoid bias for tied distances
+      new_order <- sample(seq_len(n))
+      new_order <- new_order[order(dist_to_site[new_order])]
+      
+      # Move focal site to the front
+      new_order <- c(i, new_order[new_order != i])
+      
+      comm_ordered <- pa_table[new_order, ]
+      
+      # 1 for absence, 0 for presence
+      comm_bool <- (comm_ordered == 0) * 1
+      rich <- apply(comm_bool, 2, cumprod)
+      
+      effort_mat[i, ] <- dist_to_site[order(dist_to_site)]
+    }
+  } else if (method == "area") {
+    # Compute full pairwise dist for ordering (euclidean assumed for area ordering)
+    pair_dist <- as.matrix(stats::dist(coords))
+    
+    effort_mat <- matrix(0, n, n)
+    
+    for (i in 1:n) {
+      dist_to_site <- pair_dist[i, ]
+      
+      # Randomize order to avoid bias for tied distances
+      new_order <- sample(seq_len(n))
+      new_order <- new_order[order(dist_to_site[new_order])]
+      
+      # Move focal site to the front
+      new_order <- c(i, new_order[new_order != i])
+      
+      coords_ordered <- as.matrix(coords[new_order, ])
+      
+      # First point: effort 0
+      effort_mat[i, 1] <- 0
+      
+      # Second point: distance to first (non-zero area starts at 3rd)
+      effort_mat[i, 2] <- dist_to_site[order(dist_to_site)][1]  # or 0, but match mobr
+      
+      # Convex hull areas for 3 to n
+      for (j in 3:n) {
+        hpts <- grDevices::chull(coords_ordered[1:j, 1], coords_ordered[1:j, 2])
+        hpts <- c(hpts, hpts[1])
+        chull_coords <- as.matrix(coords_ordered[hpts, ])
+        chull_poly <- sf::st_polygon(list(chull_coords))
+        chull_area <- sf::st_area(chull_poly)
+        effort_mat[i, j] <- as.numeric(chull_area)
+      }
+    }
   }
-  pair_dist <- as.matrix(pair_dist)
   
-  # Storage
-  scr_mat  <- matrix(0, n, n)
-  dist_mat <- matrix(0, n, n)
-  
+  # Compute richness curves (common to all)
+  scr_mat <- matrix(0, n, n)
   for (i in 1:n) {
-    
-    dist_to_site <- pair_dist[i, ]
-    
-    # Randomize order to avoid bias for tied distances
     new_order <- sample(seq_len(n))
-    new_order <- new_order[order(dist_to_site[new_order])]
-    
-    # Move focal site to the front
+    new_order <- new_order[order(pair_dist[i, new_order])]
     new_order <- c(i, new_order[new_order != i])
     
     comm_ordered <- pa_table[new_order, ]
-    
-    # 1 for absence, 0 for presence
     comm_bool <- (comm_ordered == 0) * 1
     rich <- apply(comm_bool, 2, cumprod)
-
-    scr_mat[i, ]  <- ncol(pa_table) - rowSums(rich)
-    dist_mat[i, ] <- dist_to_site[order(dist_to_site)]
+    
+    scr_mat[i, ] <- ncol(pa_table) - rowSums(rich)
   }
   
-  # Long-format data: distance–richness pairs
+  # Long-format data: effort–richness pairs
   out_dat <- data.frame(id       = rep(1:n, times = n),
-                        distance = as.vector(dist_mat),
+                        effort   = as.vector(effort_mat),
                         S        = as.vector(scr_mat))
   
-  out_dat <- out_dat[order(out_dat$id, out_dat$distance), ]
+  out_dat <- out_dat[order(out_dat$id, out_dat$effort), ]
   
-  # Toroidal cutoff: distances beyond half the grid_size are not meaningful
-  if (dist_type == "euclidean") {
+  # Cutoff logic
+  if (cutoff & method == "euclidean") {
     d_cut <- model_sample$grid_size[1] / 2
     out_dat <- out_dat %>%
-      dplyr::filter(distance <= d_cut)
+      dplyr::filter(effort <= d_cut)
+  } else if (cutoff & method == "area") {
+    gs <- model_sample$grid_size[1]
+    a_cut <- (gs ^ 2) / 4  # 1/4 grid surface
+    out_dat <- out_dat %>%
+      dplyr::filter(effort <= a_cut)
   }
-  
+
   # Fit model - GAM with monotonously increasing constraint
-  scam1 <- scam::scam(S ~ s(distance, bs = "mpi"),
+  scam1 <- scam::scam(S ~ s(effort, bs = "mpi"),
                       data = out_dat, family = "poisson")
   
-  # Distance grid for interpolation
+  # Effort grid for interpolation
   if (is.null(distvec)) {
-    distvec <- seq(min(out_dat$distance),
-                   max(out_dat$distance),
+    distvec <- seq(min(out_dat$effort),
+                   max(out_dat$effort),
                    length = 200)
   }
   
-  out_pred <- data.frame(distance = distvec, 
+  out_pred <- data.frame(effort = distvec, 
                          S = NA)
   
   pred <- predict(scam1, out_pred, se = TRUE, type = "response")
@@ -142,62 +194,66 @@ sSBR <- function(model_sample,
   out_pred$S <- pred$fit
   out_pred$S_low <- pred$fit - 2*pred$se.fit
   out_pred$S_high <- pred$fit + 2*pred$se.fit
-  # These confidence intervals ignore the dependence between the points,
-  # so they are likely inappropiate.
   
-  out <- list(data   = out_dat,    # id, distance, S
-              smooth = out_pred)    # distance, S, CI
+  out <- list(data   = out_dat,    
+              smooth = out_pred)   
   
   class(out) <- "sSBR"
-  attr(out, "distance_type") <- dist_type
+  attr(out, "method") <- method
   return(out)
-  
 }
 
 plot.sSBR <- function(sSBR_object,
                       col = "midnightblue",
+                      all_lines = TRUE,
                       ...) {
   
   dat <- sSBR_object$data
   sm  <- sSBR_object$smooth
-
-  dist_type <- attr(sSBR_object, "distance_type")
+  meth <- attr(sSBR_object, "method")
   
-  # Set transparency level for single lines based on number of observations
-  a <- 1 / sqrt(nrow(dat) / 300)
-  alpha <- pmax(0.05, pmin(0.75, a))
+  # Dynamic x-label based on method
+  xlab <- switch(meth,
+                 "euclidean" = "Euclidean distance",
+                 "toroidal"  = "Toroidal distance",
+                 "area"      = "Cumulative convex hull area")
   
-  # Base plot
+  # Transparency scales with number of curves (only if plotting them)
+  if (all_lines) {
+    a <- 1 / sqrt(nrow(dat) / 300)
+    alpha <- pmax(0.05, pmin(0.75, a))
+  }
+  
+  # Base plot setup
   graphics::plot(NA,
-                 xlim = range(dat$distance, na.rm = TRUE),
+                 xlim = range(dat$effort, na.rm = TRUE),
                  ylim = range(dat$S, na.rm = TRUE),
-                 xlab = paste0(dist_type, " distance"),
+                 xlab = xlab,
                  ylab = "Cumulative species richness",
                  las = 1)
   
-  # Individual curves (one line per sample)
-  for (i in unique(dat$id)) {
-    tmp <- dat[dat$id == i, ]
-    graphics::lines(tmp$distance,
-                    tmp$S,
-                    col = colorspace::adjust_transparency(col, alpha = alpha))
+  # Individual rarefaction curves (optional, semi-transparent)
+  if (all_lines) {
+    for (i in unique(dat$id)) {
+      tmp <- dat[dat$id == i, ]
+      graphics::lines(tmp$effort,
+                      tmp$S,
+                      col = colorspace::adjust_transparency(col, alpha = alpha))
+    }
   }
   
-  # Confidence ribbon
-  graphics::polygon(c(sm$distance, rev(sm$distance)),
+  # 95% CI ribbon for smooth
+  graphics::polygon(c(sm$effort, rev(sm$effort)),
                     c(sm$S_low, rev(sm$S_high)),
                     col = colorspace::adjust_transparency(col, alpha = .5),
                     border = NA)
-
   
-  # Prediction line
-  graphics::lines(sm$distance,
+  # Central smooth line (always plotted, bold)
+  graphics::lines(sm$effort,
                   sm$S,
                   col = colorspace::darken(col, amount = .4),
                   lwd = 3)
   
   invisible(sSBR_object)
 }
-
-
 

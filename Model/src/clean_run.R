@@ -44,7 +44,7 @@ clean_run <- function(mod_par,
   state_list <- list()
   
   # Helper to store a full system snapshot
-  record_state <- function(step_label, step_number) {
+  record_state <- function(step_label, step_number, fragmented = TRUE) {
     
     # Compute abundances per site per species (makes later sampling much faster)
     ss_abund <- agents %>%
@@ -55,9 +55,9 @@ clean_run <- function(mod_par,
       master_seed   = master_seed,
       step          = step_number,
       step_label    = step_label,
-      fragmentation = var_par$frag,
+      fragmentation = ifelse(fragmented, var_par$frag, NA),
       ac_amount     = var_par$ac,
-      habitat       = var_par$hab,
+      habitat       = ifelse(fragmented, var_par$hab, NA),
       grid_size     = mod_par$grid_size,
       grid          = grid,
       agents        = agents,
@@ -70,13 +70,14 @@ clean_run <- function(mod_par,
   if ("start" %in% record_steps) {
     state_list[["start"]] <- record_state(
       step_label  = "start",
-      step_number = 1
+      step_number = 0,
+      fragmented = FALSE
     )
   }
 
   # Pre-fragmentation -------------------------------------------------------
   
-  for (i in 1:steps_1) {
+  for (i in seq_len(steps_1)) {
     
     start.time <- Sys.time()
     
@@ -109,7 +110,8 @@ clean_run <- function(mod_par,
   if ("pre_fragmentation" %in% record_steps) {
     state_list[["pre_fragmentation"]] <- record_state(
       step_label  = "pre_fragmentation",
-      step_number = steps_1
+      step_number = steps_1,
+      fragmented = FALSE
     )
   }
 
@@ -140,7 +142,7 @@ clean_run <- function(mod_par,
 
   # Post-fragmentation ------------------------------------------------------
 
-  for (j in 1:steps_2) {
+  for (j in seq_len(steps_2)) {
     
     if (nrow(agents) > 0) {
       

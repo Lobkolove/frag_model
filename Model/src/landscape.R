@@ -115,7 +115,6 @@ fbm_fft <- function(
   checkmate::assert_true(ac_amount <= 1)
   checkmate::assert_logical(rescale)  
   
-  if(!is.null(seed)) set.seed(seed)
   N <- gr_size
   
   # Define alpha
@@ -129,14 +128,18 @@ fbm_fft <- function(
   freq[1, 1] <- 1 # avoid divide-by-zero at DC
   amp <- 1 / (freq^alpha)
   
-  # Complex Gaussian noise
-  noise <- matrix(rnorm(N * N), nrow = N) + 1i * matrix(rnorm(N * N), nrow = N)
-  f_field <- amp * noise
-  f_field[1, 1] <- 0 # remove mean
-  
-  field <- Re(fft(f_field, inverse = TRUE))
-  # field <- scale(field) # Not sure if needed if we rescale? 
-  
+  withr::with_seed(seed, {
+    
+    # Complex Gaussian noise
+    noise <- matrix(rnorm(N * N), nrow = N) + 1i * matrix(rnorm(N * N), nrow = N)
+    f_field <- amp * noise
+    f_field[1, 1] <- 0 # remove mean
+    
+    field <- Re(fft(f_field, inverse = TRUE))
+    # field <- scale(field) # Not sure if needed if we rescale? 
+    
+  })
+    
   # Rescale to 0-1
   if(rescale) field <- scales::rescale(field)
   

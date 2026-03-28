@@ -12,12 +12,15 @@ initialize <- function(ac, nb) {
                   seed = seed_landscape) 
   
   agents_init <- generate_agents(n_species = mod_par$n_species,
-                                 pop = mod_par$n_pop, grid) 
+                                 pop = mod_par$n_pop, 
+                                 grid = grid,
+                                 seed = seed_distribution) 
   
   agents_grid_and_list <- distribute_agent(gr_size = mod_par$grid_size,
                                            agents_list = agents_init, 
                                            space = grid, 
-                                           nb = nb) 
+                                           nb = nb,
+                                           random_distribution = switch$random_distribution) 
   
   agents_grid <- agents_grid_and_list$agents_raster
   agents <- agents_grid_and_list$agents_list 

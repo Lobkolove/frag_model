@@ -1,7 +1,7 @@
 ls_mask <- function(grid,
                     habitat,
                     fragmentation,
-                    seed) {
+                    seed = NULL) {
   
   # Input validation
   is_raster <- inherits(grid, "RasterLayer")
@@ -47,6 +47,7 @@ ls_mask <- function(grid,
 fragment <- function(full_state,
                      habitat,
                      fragmentation,
+                     seed_fragment = NULL,
                      ...) {
   
   grid <- full_state$grid

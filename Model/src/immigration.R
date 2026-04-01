@@ -28,7 +28,9 @@ immigration <- function(agents, agents_grid, grid) {
       if (survival_prob > rand) {
 
         # Set agent grid to the new ind species id
-        agents_grid[rand_loc[1], rand_loc[2]] <- cur_spec
+        if (!is.null(agents_grid)) {
+          agents_grid[rand_loc[1], rand_loc[2]] <- cur_spec
+        }
 
         # update agents list
         new_row <- data.table(

@@ -4,7 +4,7 @@
 # It generates new agents according to a set of rules.
 # The function returns the updated agents list and agent raster layer.
 
-birth <- function(agents, agents_grid, grid, NB, disp, d_dis) {
+birth <- function(agents, agents_grid, grid, nb, disp, d_dis) {
   clumped <- raster::clump(grid, directions = 4)
   patch_matrix <- as.matrix(clumped)
   # looping through all agents
@@ -22,7 +22,7 @@ birth <- function(agents, agents_grid, grid, NB, disp, d_dis) {
     if (switch$species_specific_par == 1) {
       nb <- species_par$niche_breadth[species_par$species_id == agents$species_id[i]]
     } else if (switch$species_specific_par == 0) {
-      nb <- NB
+      nb <- nb
     } else {
       print("check switches please")
     }

@@ -5,6 +5,7 @@ library(tidyr)
 library(ggplot2)
 
 # Model source files
+setwd("../")
 source("Model/parameters.R")
 source("Model/src/clean_run.R")
 source("Model/src/initialize.R")
@@ -78,7 +79,7 @@ for (method in sampling_methods) {
 # Export random samling data to CSV
 data.table::fwrite(
   sampled_data[["random"]], 
-  file = paste0("../data-raw/sampled_data/sim_", sim_id, "_random.csv"),
+  file = paste0("data-raw/sampled_data/sim_", sim_id, "_random.csv"),
   na = "NA"
 )
 
@@ -142,7 +143,7 @@ for (i in seq_len(nrow(var_par_df))) {
     # Export to CSV
     data.table::fwrite(
       sampled_df, 
-      file = paste0("../data-raw/sampled_data/sim_", sim_id, "_", 
+      file = paste0("data-raw/sampled_data/sim_", sim_id, "_", 
                     "ac_", var_par$ac, 
                     "_frag_", var_par$frag, "_", 
                     "samp_", method, ".csv"),

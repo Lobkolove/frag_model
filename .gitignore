@@ -1,2 +1,14 @@
 .Rproj.user/
 .Rhistory 
+.DS_Store
+data-raw/.DS_Store
+data-raw/output/aggr_state_combined_plot.png
+data-raw/output/aggr_state_combined_quantiles.png
+data-raw/output/random_state_combined_plot.png
+data-raw/sampled_data/.DS_Store
+Model/run_model.R
+pics/random_state_euc.png
+pics/random_state_no_cutoff.png
+pics/random_state.png
+pics/sim_state_euc.png
+pics/sim_state.png

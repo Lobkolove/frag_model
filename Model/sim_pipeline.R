@@ -89,7 +89,7 @@ data.table::fwrite(
 # to get all combinations of the two parameters.
 
 var_par_df <- tidyr::expand_grid(
-  ac = seq(from = 0.1, to = 0.9, by = 0.7),
+  ac = seq(from = 0.1, to = 0.9, by = 0.2),
   frag = c(0.2, 0.5, 0.8),
   hab = 0.15,
   nb = 0.1,
@@ -160,7 +160,7 @@ if (length(args) == 0) {
   }
 
 } else {
-  
+
   index <- as.numeric(args[1])
   sim_id <- index
   cat("Running simulation ", sim_id, " with ac = ", var_par_df$ac[index], " and frag = ", var_par_df$frag[index], "\n")

@@ -105,7 +105,7 @@ sample_cells <- function(full_state,
   sample_coords <- raster::rowColFromCell(grid, sampled_cells)
   
   samples <- data.frame(
-    sample_id = seq_len(nrow(sample_coords)),
+    sample_id = seq_len(length(sampled_cells)),
     cell_id = sampled_cells,
     x_loc = sample_coords[, 1],
     y_loc = sample_coords[, 2]
@@ -127,8 +127,11 @@ sample_cells <- function(full_state,
     dplyr::mutate(sim_id         = full_state$sim_id,
                   master_seed    = full_state$master_seed,
                   step           = full_state$step,
+                  step_label     = full_state$step_label,
                   grid_size      = full_state$grid_size,
-                  fragmentation  = full_state$fragmentation)
+                  ac_amount      = full_state$ac_amount,
+                  fragmentation  = full_state$fragmentation,
+                  samp_method    = method)
   
   
   # Merge samples df and species abundances per cell

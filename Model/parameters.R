@@ -31,29 +31,6 @@ switch <- data.frame(
   export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
 )
 
-# setting seeds based on switches
-if (switch$random_init == 1) {
-  set.seed(master_seed)
-}
-
-if (switch$random_landscape == 0) {
-  seed_landscape <- NULL
-} else {
-  seed_landscape <- master_seed + 1
-}
-
-if (switch$random_community == 0) {
-  seed_distribution <- NULL
-} else {
-  seed_distribution <- master_seed + 2
-}
-
-if (switch$random_post_frag == 0) {
-  seed_fragment <- NULL
-} else {
-  seed_fragment <- master_seed + 3
-}
-
 # Static Parameters
 mod_par <- data.frame(
   grid_size = 50, # side length of a square grid
@@ -64,8 +41,8 @@ mod_par <- data.frame(
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))
   steps = 0, # Determine how many time steps in the dynamic model
-  steps_pre_frag = 0, # used in GeDo_run.R instead of 'steps'
-  steps_post_frag = 0, # used in GeDo_run.R instead of 'steps'
+  steps_pre_frag = 4, # used in GeDo_run.R instead of 'steps'
+  steps_post_frag = 6, # used in GeDo_run.R instead of 'steps'
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
   dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)

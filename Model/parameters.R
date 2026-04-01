@@ -15,7 +15,7 @@ switch <- data.frame(
   random_landscape = 1, # determine whether set.seed is used for landscape generation. 0 = random, 1 = non-random
   random_post_frag = 1, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
   random_community = 1, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
-  random_distribution = 0, # determine whether to distribute agents randomly across the landscape or according to their niche. 0 = random, 1 = niche-based
+  random_distribution = 1, # determine whether to distribute agents randomly across the landscape or according to their niche. 0 = random, 1 = niche-based
   sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
   
   ############

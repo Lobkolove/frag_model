@@ -6,11 +6,11 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=2G
-#SBATCH --time=02:00:00
+#SBATCH --mem-per-cpu=700
+#SBATCH --time=01:40:00
 #SBATCH --qos=standard
 #SBATCH --output=logs/frag_seq_test_%j_%a.out
-#SBATCH --array=1-15
+#SBATCH --array=16-30
 
 module add R
 module add GDAL

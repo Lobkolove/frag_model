@@ -11,5 +11,6 @@
 #SBATCH --qos=standard
 
 module add R
+module add GDAL
 
 Rscript "sim_pipeline.R"

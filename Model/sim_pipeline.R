@@ -1,5 +1,4 @@
 library(data.table)
-library(foreach)
 library(raster)
 library(dplyr)
 library(tidyr)

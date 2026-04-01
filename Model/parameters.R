@@ -41,8 +41,8 @@ mod_par <- data.frame(
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))
   steps = 0, # Determine how many time steps in the dynamic model
-  steps_pre_frag = 4, # used in GeDo_run.R instead of 'steps'
-  steps_post_frag = 6, # used in GeDo_run.R instead of 'steps'
+  steps_pre_frag = 40, # used in GeDo_run.R instead of 'steps'
+  steps_post_frag = 60, # used in GeDo_run.R instead of 'steps'
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
   dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)

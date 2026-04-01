@@ -27,60 +27,6 @@ source(here("R/sample_cells.R"))
 source(here("R/dist_decay.R"))
 source(here("R/sSBR.R"))
 
-sim_id <- "test_run"
-
-# Single run with static parameters for testing
-results <- clean_run(
-  mod_par = mod_par,
-  var_par = var_par,
-  switch = switch,
-  sim_id = sim_id,
-  seed = master_seed,
-  record_steps = c("start", "pre_fragmentation", "post_fragmentation", "final")
-)
-
-# Sample test data and merge into a single data frame for each sampling method
-recorded_steps <- names(results)
-sampling_methods <- c("random", "chessboard", "all")
-sampled_data <- list()
-for (method in sampling_methods) {
-  for (step in recorded_steps) {
-    sampled <- sample_cells(
-      results[[step]],
-      method = method,
-      n_samples = 30,
-      format = "long"
-    )
-    sampled_data[[method]][[step]] <- sampled
-  }
-}
-
-# Combine sampled data for each method into a single df with wide format
-for (method in sampling_methods) {
-
-  sampled_data[[method]] <- rbindlist(sampled_data[[method]])
-  
-  sampled_data[[method]] <- sampled_data[[method]] %>%
-    tidyr::pivot_wider(names_from  = species_id,
-                       values_from = n,
-                       values_fill = 0,
-                       names_prefix = "sp_",
-                       names_sort = TRUE)
-  
-  # Some samples had no observations of any species, resulting in NA values for species_id and count.
-  # When pivoting to wide format, this can result in a column "sp_NA" which can be removed.
-  if ("sp_NA" %in% colnames(sampled_data[[method]])) {
-    sampled_data[[method]] <- sampled_data[[method]] %>%
-      select(-sp_NA)
-  }
-}
-
-# Export random samling data to CSV
-data.table::fwrite(
-  sampled_data[["random"]], 
-  file = paste0(here("data-raw/sampled_data/"), "sim_", sim_id, "_random.csv"),
-  na = "NA"
-)
 
 # Multiple runs in array job ------------------------------------------------
 

@@ -1,3 +1,4 @@
+library(here)
 library(data.table)
 library(raster)
 library(dplyr)
@@ -5,7 +6,6 @@ library(tidyr)
 library(ggplot2)
 
 # Model source files
-setwd("../")
 source("Model/parameters.R")
 source("Model/src/clean_run.R")
 source("Model/src/initialize.R")

@@ -50,7 +50,10 @@ if (length(args) == 0) {
   stop("No index provided. Please provide an index for the parameter combination to run.")
 }
 
+# Every array will have 15 combinations of parameters, so we use modulo to cycle through them if the index exceeds 15.
+
 index <- as.numeric(args[1]) %% 15
+if (index == 0) index <- 15
 sim_id <- index
 cat("Running simulation", sim_id, "with ac =", var_par_df$ac[index], "and frag =", var_par_df$frag[index], "\n")
 var_par <- var_par_df[index, ]

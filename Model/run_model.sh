@@ -1,16 +1,18 @@
 #!/bin/bash -e
 
-#SBATCH --job-name=frag_red_hab
-#SBATCH --mail-user=
+#SBATCH --job-name=frag_seq_test
+#SBATCH --mail-user=j.n.thiem@fu-berlin.de
 #SBATCH --mail-type=end
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=700
-#SBATCH --time=2:00:00
+#SBATCH --time=01:40:00
 #SBATCH --qos=standard
-#SBATCH --array=1-10
+#SBATCH --output=logs/frag_seq_test_%j_%a.out
+#SBATCH --array=16-30
 
 module add R
+module add GDAL
 
-Rscript "cluster_model_run.R" ${SLURM_ARRAY_TASK_ID} ${SLURM_CPUS_PER_TASK}
+Rscript "sim_pipeline.R" ${SLURM_ARRAY_TASK_ID}

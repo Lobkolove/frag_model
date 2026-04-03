@@ -17,7 +17,8 @@
 dist_decay <- function(model_sample, 
                        binary = FALSE, 
                        dist_type = c("euclidean", "toroidal"),
-                       method = "bray") { 
+                       method = "bray",
+                       distvec = NULL) { 
   
   dist_type <- match.arg(dist_type)
 
@@ -56,10 +57,14 @@ dist_decay <- function(model_sample,
     out_dat <- out_dat %>%
       dplyr::filter(distance <= d_cut)
   }
+
+  if (is.null(distvec)) {
+    distvec <- seq(min(out_dat$distance),
+                   max(out_dat$distance),
+                   length = 200)
+  }
   
-  out_pred <- data.frame(distance   = seq(min(out_dat$distance),
-                                          max(out_dat$distance),
-                                          length = 200),
+  out_pred <- data.frame(distance = distvec, 
                          similarity = NA)
   
   # Fit model - GAM with monotonously increasing constraint

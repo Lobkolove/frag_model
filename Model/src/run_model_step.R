@@ -1,16 +1,18 @@
 # Core model logic for a single timestep
-run_model_step <- function(grid,
-                           agents,
-                           agents_grid,
+run_model_step <- function(model_state,
                            var_par,
                            switch) {
   
+  grid <- model_state$grid
+  agents <- model_state$agents
+  agents_grid <- model_state$agents_grid
+
   # Birth
   step1 <- birth(
     agents = agents,
     agents_grid = agents_grid,
     grid = grid,
-    NB = var_par$nb,
+    nb = var_par$nb,
     disp = var_par$disp,
     d_dis = var_par$disp_dist
   )
@@ -37,8 +39,24 @@ run_model_step <- function(grid,
     agents_grid <- step3$agents_grid
   }
   
-  list(
-    agents = agents,
-    agents_grid = agents_grid
-  )
-}
+  step_out <- record_step(grid = grid,
+                          agents = agents,
+                          agents_grid = agents_grid,
+                          step = model_state$step + 1L)
+  
+  if ("core_state" %in% class(model_state)) {
+    return(step_out)
+  } else if ("full_state" %in% class(model_state)) {
+    full_state <- record_state(
+      core_state = step_out,
+      sim_id = model_state$sim_id,
+      master_seed = model_state$master_seed,
+      grid_size = model_state$grid_size,
+      ac_amount = model_state$ac_amount,
+      fragmentation = model_state$fragmentation,
+      habitat = model_state$habitat,
+      step_label = NULL
+    )
+    return(full_state)
+  }
+}  

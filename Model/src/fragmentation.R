@@ -1,7 +1,7 @@
 ls_mask <- function(grid,
                     habitat,
                     fragmentation,
-                    seed) {
+                    seed = NULL) {
   
   # Input validation
   is_raster <- inherits(grid, "RasterLayer")
@@ -47,6 +47,7 @@ ls_mask <- function(grid,
 fragment <- function(full_state,
                      habitat,
                      fragmentation,
+                     seed_fragment = NULL,
                      ...) {
   
   grid <- full_state$grid
@@ -70,7 +71,9 @@ fragment <- function(full_state,
   agents$patch_id <- patch_matrix[cbind(agents$x_loc, agents$y_loc)]
   
   # Update agents_grid (turn matrix cells to NA)
-  agents_grid[is.na(fragmented_grid)] <- NA
+  if (!is.null(agents_grid)) {
+    agents_grid[is.na(fragmented_grid)] <- NA
+  }
 
   # Update ss_abund (turn matrix cells to NA)
   ss_abund <- ss_abund %>%
@@ -80,19 +83,19 @@ fragment <- function(full_state,
     ) %>%
     dplyr::select(-habitat)
   
-  return_list <- list(      
-    sim_id        = full_state$sim_id,
-    master_seed   = full_state$master_seed,
-    step          = full_state$step + 1,
-    step_label    = "post_fragmentation",
+  record_state(
+    core_state = list(
+      grid = fragmented_grid,
+      agents = agents,
+      agents_grid = agents_grid,
+      step = full_state$step
+    ),
+    sim_id = full_state$sim_id,
+    master_seed = full_state$master_seed,
+    grid_size = full_state$grid_size,
+    ac_amount = full_state$ac_amount,
     fragmentation = fragmentation,
-    ac_amount     = full_state$ac_amount,
-    habitat       = habitat,
-    grid_size     = full_state$grid_size,
-    grid          = fragmented_grid,
-    agents        = agents,
-    agents_grid   = agents_grid,
-    ss_abund      = ss_abund
+    habitat = habitat,
+    step_label = "post_fragmentation"
   )
-  return(return_list)
 }

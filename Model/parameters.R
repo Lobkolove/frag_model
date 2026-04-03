@@ -6,40 +6,32 @@
 
 # choose a random seed constant for the simulation or set the seed manually
 # seed <- round(runif(1,1,9999))
-master_seed <- 42L
-
-# Ensure distinct seeds for landscape generation and fragmentation
-seed_landscape <- master_seed + 1L
-seed_fragment <- master_seed + 2L
+master_seed <- 112L
 
 # Switches
-
 switch <- data.frame(
   animation_export = 0, # determine whether plots from each time-step are exported for later animation. 0 = no, 1 = yes (keep OFF when running on cluster!)
-  random = 0, # determine whether set.seed is used for the spin up phase. 0 = random, 1 = deterministic
-  random_post_frag = 0, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
-  random_community = 0, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
+  random_init = 0, # determine whether set.seed is used for the spin up phase. 0 = random, 1 = deterministic
+  random_landscape = 1, # determine whether set.seed is used for landscape generation. 0 = random, 1 = non-random
+  random_post_frag = 1, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
+  random_community = 1, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
+  random_distribution = 1, # determine whether to distribute agents randomly across the landscape or according to their niche. 0 = random, 1 = niche-based
   sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
-  immigration = 1, # determine if individuals from outside the space can immigrate back in. 0 = no, 1 = yes
-
+  
   ############
   # this switch is very problematic as it can override "var_par" in certain cases e.g with edge effects in "death" function.
   # This need to be examined and maybe removed. For now, leave at 0!!
   species_specific_par = 0, # determine if species have non/some/"all" unique parameters 0 = deterministic, 1 = some, 2 = "all"
   ############
-
+  
+  immigration = 1, # determine if individuals from outside the space can immigrate back in. 0 = no, 1 = yes
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
   print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed
   export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
 )
 
-if (switch$random == 1) {
-  set.seed(seed)
-}
-
 # Static Parameters
-
 mod_par <- data.frame(
   grid_size = 50, # side length of a square grid
   habitat_percent = 0.15, # 0-1 proportion of habitat vs matrix
@@ -48,9 +40,9 @@ mod_par <- data.frame(
   n_pop = 5000, # setting amount of individuals
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))
-  steps = 40, # Determine how many time steps in the dynamic model
+  steps = 0, # Determine how many time steps in the dynamic model
   steps_pre_frag = 40, # used in GeDo_run.R instead of 'steps'
-  steps_post_frag = 0, # used in GeDo_run.R instead of 'steps'
+  steps_post_frag = 60, # used in GeDo_run.R instead of 'steps'
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
   dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)

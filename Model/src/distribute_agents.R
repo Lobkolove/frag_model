@@ -3,7 +3,13 @@
 # The function returns a raster layer where cells values are equal to the species ID number
 # indicating where agents are distributed in space.
 
-distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
+distribute_agent <- function(gr_size, 
+                             agents_list = agents, 
+                             space, 
+                             nb,
+                             seed = NULL,
+                             random_distribution = FALSE,
+                             ...) {
 
   # extract the extent of the simulation space raster, convert to matrix and create blank matrix
   extent <- extent(space)
@@ -13,6 +19,7 @@ distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
   samp <- function(x, ...) x[sample.int(length(x), ...)] # redefine sample to work in case of vector length 1
   grid_values <- getValues(space)
 
+
   # populate matrix if random location is a habitat and  survival probability is higher than rand1
   for (k in 1:length(agents_list$ID)) {
 
@@ -21,6 +28,12 @@ distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
     n_value <- species_par$n_value[species_par$species_id == agents_list$species_id[k]]
     range <- c(n_value - nb, n_value + nb)
     possible_cells <- which(grid_values > range[1] & grid_values < range[2])
+
+    # Added to allow for random distribution of agents across the landscape, regardless of their niche values. 
+    # This is useful for testing the effects of fragmentation without the confounding effect of niche-based distribution.
+    if (random_distribution) {
+      possible_cells <- which(!is.na(grid_values))
+    }
 
     if (length(possible_cells) >= 1) {
       location <- samp(possible_cells, 1)
@@ -54,4 +67,4 @@ distribute_agent <- function(gr_size, agents_list = agents, space, nb) {
 
   return_list <- list(agents_raster = agents_raster, agents_list = agents_list)
   return(return_list)
-}
+  }

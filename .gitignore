@@ -1,2 +1,23 @@
 .Rproj.user/
 .Rhistory 
+doc_ju.html
+frag_comparison.gif
+styles.css
+pics/dist_decay_full.png
+pics/dist_decay_smooth.png
+pics/fbm_frag_ac_0.5_frag_0.5_1.png
+pics/fbm_fragmented_ac_0.5_frag_0.5_3.png
+pics/fbm_full_ac_0.5_2.png
+pics/fbm_H.gif
+pics/fbm_H0.52.png
+pics/fbm_tiled_ac_0.5_1.png
+pics/frag_comparison.gif
+pics/fragmented_ls.png
+pics/full vs fragmented.png
+pics/nlm_fbm_ac_0.5.png
+pics/r_clumps.png
+pics/SC_high_frag_grid.png
+pics/SC_low_frag_grid.png
+pics/sSBR_full.png
+pics/sSBR_smooth.png
+pics/t_clumps.png

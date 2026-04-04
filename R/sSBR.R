@@ -54,7 +54,7 @@
 #' 
 #' @noRd
 sSBR <- function(model_sample, 
-                 distvec = NULL,
+                 spatvec = NULL,
                  method = c("euclidean", "toroidal", "area"),
                  cutoff = TRUE) {
   
@@ -75,6 +75,9 @@ sSBR <- function(model_sample,
   # Extract coordinates
   coords <- model_sample %>%
     dplyr::select(x_loc, y_loc)
+
+  # Storage for output
+  out_list <- vector("list", n)
   
   # Pairwise distances (for euclidean/toroidal)
   if (method %in% c("euclidean", "toroidal")) {
@@ -85,8 +88,6 @@ sSBR <- function(model_sample,
     }
     pair_dist <- as.matrix(pair_dist)
     
-    # Storage
-    effort_mat <- matrix(0, n, n)
     
     for (i in 1:n) {
       dist_to_site <- pair_dist[i, ]
@@ -103,15 +104,21 @@ sSBR <- function(model_sample,
       # 1 for absence, 0 for presence
       comm_bool <- (comm_ordered == 0) * 1
       rich <- apply(comm_bool, 2, cumprod)
+      S <- rowSums(1 - rich)
       
-      effort_mat[i, ] <- dist_to_site[order(dist_to_site)]
+      spat_ext <- dist_to_site[order(dist_to_site)]
+      samp_eff <- seq_len(n)
+      
+      out_list[[i]] <- dplyr::tibble(
+        spat_ext = spat_ext,
+        samp_eff = samp_eff,
+        S = S
+      )
     }
   } else if (method == "area") {
     # Compute full pairwise dist for ordering (euclidean assumed for area ordering)
     pair_dist <- as.matrix(stats::dist(coords))
-    
-    effort_mat <- matrix(0, n, n)
-    
+        
     for (i in 1:n) {
       dist_to_site <- pair_dist[i, ]
       
@@ -125,10 +132,11 @@ sSBR <- function(model_sample,
       coords_ordered <- as.matrix(coords[new_order, ])
       
       # First point: effort 0
-      effort_mat[i, 1] <- 0
+      spat_ext <- numeric(n)
+      spat_ext[1] <- 0
       
       # Second point: distance to first (non-zero area starts at 3rd)
-      effort_mat[i, 2] <- dist_to_site[order(dist_to_site)][1]  # or 0, but match mobr
+      spat_ext[2] <- dist_to_site[order(dist_to_site)][1]  # or 0, but match mobr
       
       # Convex hull areas for 3 to n
       for (j in 3:n) {
@@ -137,8 +145,20 @@ sSBR <- function(model_sample,
         chull_coords <- as.matrix(coords_ordered[hpts, ])
         chull_poly <- sf::st_polygon(list(chull_coords))
         chull_area <- sf::st_area(chull_poly)
-        effort_mat[i, j] <- as.numeric(chull_area)
+        spat_ext[j] <- as.numeric(chull_area)
       }
+
+      comm_ordered <- pa_table[new_order, ]
+      comm_bool <- (comm_ordered == 0) * 1
+      rich <- apply(comm_bool, 2, cumprod)
+      S <- rowSums(1 - rich)
+      samp_eff <- seq_len(n)
+
+      out_list[[i]] <- dplyr::tibble(
+        spat_ext = spat_ext,
+        samp_eff = samp_eff,
+        S = S
+      )
     }
   }
   
@@ -156,44 +176,51 @@ sSBR <- function(model_sample,
     scr_mat[i, ] <- ncol(pa_table) - rowSums(rich)
   }
   
-  # Long-format data: effort–richness pairs
-  out_dat <- data.frame(id       = rep(1:n, times = n),
-                        effort   = as.vector(effort_mat),
-                        S        = as.vector(scr_mat))
-  
-  out_dat <- out_dat[order(out_dat$id, out_dat$effort), ]
+  # Combine output into a single data frame
+  out_dat <- dplyr::bind_rows(out_list)
   
   # Cutoff logic
   if (cutoff & method == "euclidean") {
     d_cut <- model_sample$grid_size[1] / 2
     out_dat <- out_dat %>%
-      dplyr::filter(effort <= d_cut)
+      dplyr::filter(spat_ext <= d_cut)
   } else if (cutoff & method == "area") {
     gs <- model_sample$grid_size[1]
     a_cut <- (gs ^ 2) / 4  # 1/4 grid surface
     out_dat <- out_dat %>%
-      dplyr::filter(effort <= a_cut)
+      dplyr::filter(spat_ext <= a_cut)
   }
 
   # Fit model - GAM with monotonously increasing constraint
-  scam1 <- scam::scam(S ~ s(effort, bs = "mpi"),
+  scam1 <- scam::scam(S ~ s(spat_ext, bs = "mpi") + s(samp_eff),
                       data = out_dat, family = "poisson")
   
   # Effort grid for interpolation
-  if (is.null(distvec)) {
-    distvec <- seq(min(out_dat$effort),
-                   max(out_dat$effort),
+  if (is.null(spatvec)) {
+    spatvec <- seq(min(out_dat$spat_ext, na.rm = TRUE),
+                   max(out_dat$spat_ext, na.rm = TRUE),
                    length = 200)
   }
   
-  out_pred <- data.frame(effort = distvec, 
-                         S = NA)
+  # Predict sampling effort for each spatial extent
+  lm_ss <- lm(samp_eff ~ spat_ext, data = out_dat)
+
+
+  samp_eff_pred <- predict(lm_ss, newdata = data.frame(spat_ext = spatvec))
+
+  out_pred <- data.frame(spat_ext = spatvec, samp_eff = samp_eff_pred)
   
   pred <- predict(scam1, out_pred, se = TRUE, type = "response")
-  
+
   out_pred$S <- pred$fit
   out_pred$S_low <- pred$fit - 2*pred$se.fit
   out_pred$S_high <- pred$fit + 2*pred$se.fit
+
+  out_pred <- out_pred %>%
+    group_by(spat_ext) %>%
+    summarise(S = mean(S), 
+              S_low = mean(S_low), 
+              S_high = mean(S_high))
   
   out <- list(data   = out_dat,    
               smooth = out_pred)   

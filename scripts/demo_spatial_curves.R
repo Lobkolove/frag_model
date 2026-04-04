@@ -246,3 +246,42 @@ high_frag_chess <- sample_cells(full_state = high_frag_state, method = "chessboa
 high_frag_full <- sample_cells(full_state = high_frag_state, method = "all")
 
 
+
+
+
+# sSBR with convexhull ---------------------------------------------------
+
+# Read in full states object and extract post-fragmentation states
+states_high <- readRDS("data-raw/states_frag_0.75_sim_6.rds")
+states_low <- readRDS("data-raw/states_frag_0.25_sim_6.rds")
+
+post_frag_high <- states_high$post_fragmentation
+post_frag_low <- states_low$post_fragmentation
+
+# Create samples for distance decay and sSBR
+high_rand <- sample_cells(post_frag_high, method = "random", n_samples = 30)
+low_rand <- sample_cells(post_frag_low, method = "random", n_samples = 30)
+
+
+# Extract main curves only
+sSBR_low <- sSBR(model_sample = low_rand, method = "area", 
+                 spatvec = seq(0, 625, length = 200))$smooth
+sSBR_high <- sSBR(model_sample = high_rand, method = "area", 
+                  spatvec = seq(0, 625, length = 200))$smooth
+
+# Merge for plotting
+sSBR_low$fragmentation <- "Low"
+sSBR_high$fragmentation <- "High"
+
+sSBR_combined <- bind_rows(sSBR_low, sSBR_high)
+
+# Plot curves
+ggplot(sSBR_combined, aes(x = spat_ext, y = S, color = fragmentation)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = S_low, ymax = S_high, fill = fragmentation), alpha = 0.2, color = NA) +
+  labs(x = "Cumulative convex hull area", y = "Species richness") +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  scale_color_manual(values = c("Low" = "midnightblue", "High" = "violetred4")) +
+  scale_fill_manual(values = c("Low" = "midnightblue", "High" = "violetred4"))
+

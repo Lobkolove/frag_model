@@ -30,9 +30,18 @@ source(here("R/sSBR.R"))
 
 # Multiple runs in array job ------------------------------------------------
 
+# Parse command line argument for array index (if running on cluster)
+args <- commandArgs(trailingOnly = TRUE)
+
+if (length(args) == 0) {
+  stop("No index provided. Please provide an index for the parameter combination to run.")
+}
+
+# Change this for each run, or set up to read from command line arguments if running on cluster
+sim_id <- args[1]
+
 # For each run, we need to build a var_par with varied ac and frag values,
 # to get all combinations of the two parameters.
-
 var_par_df <- tidyr::expand_grid(
   ac = seq(from = 0.1, to = 0.9, by = 0.2),
   frag = c(0.2, 0.5, 0.8),
@@ -43,18 +52,10 @@ var_par_df <- tidyr::expand_grid(
   edge = 1
 )
 
-# Parse command line argument for array index (if running on cluster)
-args <- commandArgs(trailingOnly = TRUE)
-
-if (length(args) == 0) {
-  stop("No index provided. Please provide an index for the parameter combination to run.")
-}
-
-# Every array will have 15 combinations of parameters, so we use modulo to cycle through them if the index exceeds 15.
-
-index <- as.numeric(args[1]) %% 15
+# Every array will have 15 combinations of parameters, so we use modulo to cycle through them if the index exceeds 15
+index <- as.numeric(args[2]) %% 15
 if (index == 0) index <- 15
-sim_id <- index
+
 cat("Running simulation", sim_id, "with ac =", var_par_df$ac[index], "and frag =", var_par_df$frag[index], "\n")
 var_par <- var_par_df[index, ]
 
@@ -82,22 +83,24 @@ for (method in sampling_methods) {
   
   sampled_df <- rbindlist(sampled)
   
-  sampled_df <- sampled_df %>%
-    tidyr::pivot_wider(names_from  = species_id,
-                        values_from = n,
-                        values_fill = 0,
-                        names_prefix = "sp_",
-                        names_sort = TRUE)
+  # Pivoting to wide actually makes it more difficult to merge different steps together, 
+  # so we'll keep it in long format for now. We can always pivot to wide later if needed.
+  # sampled_df <- sampled_df %>%
+  #   tidyr::pivot_wider(names_from  = species_id,
+  #                       values_from = n,
+  #                       values_fill = 0,
+  #                       names_prefix = "sp_",
+  #                       names_sort = TRUE)
   
-  if ("sp_NA" %in% colnames(sampled_df)) {
-    sampled_df <- sampled_df %>%
-      select(-sp_NA)
-  }
+  # if ("sp_NA" %in% colnames(sampled_df)) {
+  #   sampled_df <- sampled_df %>%
+  #     select(-sp_NA)
+  # }
   
   # Export to CSV
   data.table::fwrite(
     sampled_df, 
-    file = paste0(here("data-raw/sampled_data/"), "sim_", sim_id, "_", 
+    file = paste0(here("data-raw/sampled_data/"), sim_id, "_", 
                   "ac_", var_par$ac, 
                   "_frag_", var_par$frag, "_", 
                   "samp_", method, ".csv"),

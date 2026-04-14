@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-#SBATCH --job-name=frag_seq_test
+#SBATCH --job-name=sim_1
 #SBATCH --mail-user=j.n.thiem@fu-berlin.de
 #SBATCH --mail-type=end
 #SBATCH --nodes=1
@@ -15,4 +15,4 @@
 module add R
 module add GDAL
 
-Rscript "sim_pipeline.R" ${SLURM_ARRAY_TASK_ID}
+Rscript "sim_pipeline.R" ${SLURM_JOB_ID} ${SLURM_ARRAY_TASK_ID}

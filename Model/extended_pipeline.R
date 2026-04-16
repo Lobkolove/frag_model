@@ -49,7 +49,16 @@ dir.create(sampled_dir, showWarnings = FALSE)
 # Minimal sim_id (4-digit, auto-increment)
 next_sim_id <- 1
 if (file.exists(log_file)) {
-  next_sim_id <- max(as.numeric(fread(log_file)$sim_id), 1, na.rm = TRUE) + 1
+  for (i in 1:5) {  # Retry with backoff
+    tryCatch({
+      existing_log <- fread(log_file)
+      next_sim_id <- max(as.numeric(existing_log$sim_id), 1, na.rm = TRUE) + 1
+      break
+    }, error = function(e) {
+      Sys.sleep(0.1 * i)
+      if (i == 5) stop("Cannot read log: ", e$message)
+    })
+  }
 }
 sim_id <- sprintf("%04d", next_sim_id)
 
@@ -76,75 +85,71 @@ if (file.exists(log_file)) {
 cat("sim_id =", sim_id, "- task =", task_id, "- scenario =", scenario_key, 
     "- rep =", replicate_num, "- ac =", var_par$ac, "frag =", var_par$frag, "\n")
 
-# Initial log
-log_entry <- data.table(
-  sim_id, task_id, job_id, scenario_key, replicate_num,
-  run_date = Sys.time(), project_version = "frag_v1",
-  ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
-  disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
-  seed = master_seed + task_id, status = "running",
-  state_file = file.path(state_dir, paste0(sim_id, "_", scenario_key, "_r", sprintf("%03d", replicate_num), ".rds")),
-  sampled_files = NA_character_
+# Run simulation
+seed_used <- master_seed + task_id
+results <- clean_run(
+  mod_par = mod_par,
+  var_par = var_par,
+  switch = switch,
+  sim_id = sim_id,
+  seed = seed_used,
+  record_steps = c(
+    # "start",
+    # "pre_fragmentation",
+    "post_fragmentation",
+    "final"
+  )
 )
 
-if (!file.exists(log_file)) {
-  fwrite(log_entry, log_file)
-} else {
-  fwrite(log_entry, log_file, append = TRUE)
+# Save model states
+recorded_steps <- names(results)
+for (step in recorded_steps) {
+  step_file <- file.path(state_dir, paste0(sim_id, "_", scenario_key, 
+                                          "_r", sprintf("%03d", replicate_num), 
+                                          "_", step, ".rds"))
+  saveRDS(results[[step]], step_file, compress = "xz")
 }
 
-tryCatch({
-  
-  results <- clean_run(
-    mod_par = mod_par,
-    var_par = var_par,
-    switch = switch,
-    sim_id = sim_id,
-    seed = master_seed + task_id,
-    record_steps = c(
-      # "start",
-      # "pre_fragmentation",
-      "post_fragmentation",
-      "final"
-    )
-  )
-  
-  # Save state (aligned naming)
-  state_file <- log_entry$state_file
-  saveRDS(results, state_file, compress = "xz")
-  
-  # Sampling 
-  recorded_steps <- names(results)
-  sampling_methods <- c("random", "all", "chessboard")
-  sampled_files <- character()
-  
-  for (method in sampling_methods) {
-    sampled <- list()
-    for (step in recorded_steps) {
-      sampled[[step]] <- sample_cells(results[[step]], method = method, 
-                                      n_samples = 30, format = "long")
-    }
-    sampled_df <- rbindlist(sampled)
-    
-    # Add replicate_num to the sampled_df for easier merging later on
-    sampled_df[, `:=`(replicate_num = replicate_num)]
-    
-    # Full filename with scenario key and replicate number
-    samp_file <- file.path(sampled_dir, paste0(sim_id, "_", scenario_key, 
-                                              "_r", sprintf("%03d", replicate_num), 
-                                              "_samp_", method, ".csv"))
-    fwrite(sampled_df, samp_file, na = "NA")
-    sampled_files <- c(sampled_files, samp_file)
+# Sampling
+sampled_files <- character()
+sampling_methods <- c("all", "chessboard", "random")
+
+for (method in sampling_methods) {
+  sampled <- list()
+  for (step in recorded_steps) {
+    sampled[[step]] <- sample_cells(results[[step]], 
+                                    method = method, 
+                                    n_samples = 30, 
+                                    format = "long")
   }
+  sampled_df <- rbindlist(sampled)
+  sampled_df[, `:=`(replicate_num = replicate_num)]
   
-  # Complete log
-  log_entry[, `:=`(status = "complete", sampled_files = paste(sampled_files, collapse = "; "))]
-  fwrite(log_entry[, .(sim_id, status, sampled_files)], log_file, append = TRUE)
-  
-  cat("✓", sim_id, "\n\n")
-  
-}, error = function(e) {
-  fwrite(log_entry[, .(sim_id, status = "failed", error = as.character(e))], 
-        log_file, append = TRUE)
-  stop(e)
-})
+  samp_file <- file.path(sampled_dir, paste0(sim_id, "_", scenario_key, 
+                                            "_r", sprintf("%03d", replicate_num), 
+                                            "_samp_", method, ".csv"))
+  fwrite(sampled_df, samp_file, na = "NA")
+  sampled_files <- c(sampled_files, samp_file)
+}
+
+# Single atomic log write to avoid concurrency issues
+final_log <- data.table(
+  sim_id, task_id, job_id, scenario_key, replicate_num,
+  run_date = Sys.Date(), project_version = "frag_v1",
+  ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
+  disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
+  seed = seed_used, status = "complete",
+  state_files = paste(state_files, collapse = "; "), 
+  sampled_files = paste(sampled_files, collapse = "; ")
+)
+
+temp_file <- tempfile(pattern = "log_", fileext = ".csv")
+if (file.exists(log_file)) {
+  existing <- fread(log_file)
+  fwrite(rbind(existing, final_log, fill = TRUE), temp_file)
+} else {
+  fwrite(final_log, temp_file)
+}
+file.rename(temp_file, log_file)
+
+cat("✓", sim_id, "\n\n")

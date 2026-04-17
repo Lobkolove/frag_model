@@ -46,21 +46,18 @@ dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(state_dir, showWarnings = FALSE)
 dir.create(sampled_dir, showWarnings = FALSE)
 
-# Minimal sim_id (4-digit, auto-increment)
-next_sim_id <- 1
+# Unique sim_id generation using block allocation to avoid concurrency issues
+last_sim_id <- 0
+existing_log <- NULL
 if (file.exists(log_file)) {
-  for (i in 1:5) {  # Retry with backoff
-    tryCatch({
-      existing_log <- fread(log_file)
-      next_sim_id <- max(as.numeric(existing_log$sim_id), 1, na.rm = TRUE) + 1
-      break
-    }, error = function(e) {
-      Sys.sleep(0.1 * i)
-      if (i == 5) stop("Cannot read log: ", e$message)
-    })
-  }
+  existing_log <- fread(log_file)
+  last_sim_id <- max(as.numeric(existing_log$sim_id), 0, na.rm = TRUE)
 }
-sim_id <- sprintf("%04d", next_sim_id)
+
+# Block allocation: task_id gives offset within block
+sim_id <- sprintf("%04d", last_sim_id + task_id)
+
+cat("Block start =", last_sim_id, "→ sim_id =", sim_id, "task =", task_id, "\n")
 
 # Parameter table
 var_par_df <- tidyr::expand_grid(
@@ -74,12 +71,9 @@ scenario_key <- paste0("ac", sprintf("%.1f", var_par$ac), "_frag", var_par$frag,
 
 # True per-parameter replicate numbering
 replicate_num <- 1
-if (file.exists(log_file)) {
-  log <- fread(log_file)
-  scenario_reps <- log[scenario_key == scenario_key]
-  if (nrow(scenario_reps) > 0) {
-    replicate_num <- max(scenario_reps$replicate_num, 0) + 1
-  }
+if (!is.null(existing_log)) {
+  scenario_reps <- existing_log[scenario_key == scenario_key]
+  if (nrow(scenario_reps) > 0) replicate_num <- max(scenario_reps$replicate_num) + 1
 }
 
 cat("sim_id =", sim_id, "- task =", task_id, "- scenario =", scenario_key, 
@@ -102,15 +96,13 @@ results <- clean_run(
 )
 
 # Save model states
-recorded_steps <- names(results)
-for (step in recorded_steps) {
-  step_file <- file.path(state_dir, paste0(sim_id, "_", scenario_key, 
-                                          "_r", sprintf("%03d", replicate_num), 
-                                          "_", step, ".rds"))
-  saveRDS(results[[step]], step_file, compress = "xz")
-}
+state_file <- file.path(state_dir, paste0(sim_id, "_", scenario_key, 
+"_r", sprintf("%03d", replicate_num), ".rds"))
+saveRDS(results, state_file)
+
 
 # Sampling
+recorded_steps <- names(results)
 sampled_files <- character()
 sampling_methods <- c("all", "chessboard", "random")
 
@@ -139,7 +131,7 @@ final_log <- data.table(
   ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
   disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
   seed = seed_used, status = "complete",
-  state_files = paste(state_files, collapse = "; "), 
+  state_file = paste(state_file, collapse = "; "), 
   sampled_files = paste(sampled_files, collapse = "; ")
 )
 

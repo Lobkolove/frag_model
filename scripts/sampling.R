@@ -99,7 +99,7 @@ image(patches, asp = 1)
 ## Random sampling ####
 
 pre_ran <- sample_cells(pre_frag_low, method = "random", n_samples = 30)
-post_ran <- sample_cells(post_frag_low, method = "random", n_samples = 30)
+post_ran <- sample_cells(post_frag_low, method = "random", n_samples = 30, format = "long")
 
 pre_full <- sample_cells(pre_frag_low, method = "all")
 post_full <- sample_cells(post_frag_low, method = "all")

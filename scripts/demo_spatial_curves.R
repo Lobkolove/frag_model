@@ -3,6 +3,7 @@ library(dplyr)
 library(vegan)
 library(mgcv)
 library(scam)
+library(ggplot2)
 
 source("R/sample_cells.R")
 source("R/toroidal_clump.R")
@@ -251,23 +252,11 @@ high_frag_full <- sample_cells(full_state = high_frag_state, method = "all")
 
 # sSBR with convexhull ---------------------------------------------------
 
-# Read in full states object and extract post-fragmentation states
-states_high <- readRDS("data-raw/states_frag_0.75_sim_6.rds")
-states_low <- readRDS("data-raw/states_frag_0.25_sim_6.rds")
-
-post_frag_high <- states_high$post_fragmentation
-post_frag_low <- states_low$post_fragmentation
-
-# Create samples for distance decay and sSBR
-high_rand <- sample_cells(post_frag_high, method = "random", n_samples = 30)
-low_rand <- sample_cells(post_frag_low, method = "random", n_samples = 30)
-
-
 # Extract main curves only
 sSBR_low <- sSBR(model_sample = low_rand, method = "area", 
-                 spatvec = seq(0, 625, length = 200))$smooth
+                 spatvec = seq(0, 625, length.out = 200), cutoff = TRUE)$smooth
 sSBR_high <- sSBR(model_sample = high_rand, method = "area", 
-                  spatvec = seq(0, 625, length = 200))$smooth
+                  spatvec = seq(0, 625, length.out = 200), cutoff = TRUE)$smooth
 
 # Merge for plotting
 sSBR_low$fragmentation <- "Low"
@@ -284,4 +273,5 @@ ggplot(sSBR_combined, aes(x = spat_ext, y = S, color = fragmentation)) +
   theme(legend.title = element_blank()) +
   scale_color_manual(values = c("Low" = "midnightblue", "High" = "violetred4")) +
   scale_fill_manual(values = c("Low" = "midnightblue", "High" = "violetred4"))
+
 

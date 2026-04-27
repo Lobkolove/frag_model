@@ -30,12 +30,12 @@ source(here("R/sSBR.R"))
 
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) == 0) {
-  stop("Usage: Rscript sim_pipeline.R <task_id> [job_id]")
+if (length(args) < 2) {
+  stop("Usage: Rscript sim_pipeline.R <task_id> <job_id>")
 }
 
 task_id <- as.numeric(args[1])
-job_id <- if (length(args) > 1) args[2] else "local"
+job_id <- as.numeric(args[2])
 
 # Paths
 output_dir <- here("output")
@@ -80,13 +80,14 @@ cat("sim_id =", sim_id, "- task =", task_id, "- scenario =", scenario_key,
     "- rep =", replicate_num, "- ac =", var_par$ac, "frag =", var_par$frag, "\n")
 
 # Run simulation
-seed_used <- master_seed + task_id
+# master seed == last 3 digits of job_id + task_id to ensure unique seeds across runs
+master_seed <- job_id %% 1000 + task_id
 results <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
   switch = switch,
   sim_id = sim_id,
-  seed = seed_used,
+  seed = master_seed,
   record_steps = c(
     # "start",
     # "pre_fragmentation",
@@ -131,17 +132,10 @@ final_log <- data.table(
   ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
   disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
   seed = seed_used, status = "complete",
-  state_file = paste(state_file, collapse = "; "), 
+  state_file = state_file,
   sampled_files = paste(sampled_files, collapse = "; ")
 )
 
-temp_file <- tempfile(pattern = "log_", fileext = ".csv")
-if (file.exists(log_file)) {
-  existing <- fread(log_file)
-  fwrite(rbind(existing, final_log, fill = TRUE), temp_file)
-} else {
-  fwrite(final_log, temp_file)
-}
-file.rename(temp_file, log_file)
+fwrite(final_log, log_file, append = !file.exists(log_file), logical01 = TRUE)
 
 cat("✓", sim_id, "\n\n")

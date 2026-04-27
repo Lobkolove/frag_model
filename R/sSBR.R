@@ -54,173 +54,65 @@
 #' 
 #' @noRd
 sSBR <- function(model_sample, 
-                 spatvec = NULL,
                  method = c("euclidean", "toroidal", "area"),
-                 cutoff = TRUE) {
+                 cutoff = TRUE,
+                 spatvec = NULL,
+                 effort_ref = NULL,
+                 n_focal = NULL) {
   
   method <- match.arg(method)
   
-  # Drop empty species
+  # Drop empty species rows
   model_sample <- model_sample %>%
-    filter(rowSums(across(starts_with("sp"))) > 0)
+    dplyr::filter(rowSums(dplyr::across(starts_with("sp"))) > 0)
   
-  # Extract species data as presence–absence, drop empty species
-  pa_table <- model_sample %>%
-    dplyr::select(starts_with("sp")) %>%
-    dplyr::select(where(~ sum(.x) > 0)) %>%
-    dplyr::mutate(across(everything(), ~ (.x > 0) * 1))
-  
-  n <- nrow(pa_table)
-  
-  # Extract coordinates
-  coords <- model_sample %>%
-    dplyr::select(x_loc, y_loc)
-
-  # Storage for output
-  out_list <- vector("list", n)
-  
-  # Pairwise distances (for euclidean/toroidal)
-  if (method %in% c("euclidean", "toroidal")) {
-    if (method == "euclidean") {
-      pair_dist <- stats::dist(coords) # euclidean distances
-    } else if (method == "toroidal") {
-      pair_dist <- toroidal_dist(coords, model_sample$grid_size[1]) # toroidal distances 
-    }
-    pair_dist <- as.matrix(pair_dist)
-    
-    
-    for (i in 1:n) {
-      dist_to_site <- pair_dist[i, ]
-      
-      # Randomize order to avoid bias for tied distances
-      new_order <- sample(seq_len(n))
-      new_order <- new_order[order(dist_to_site[new_order])]
-      
-      # Move focal site to the front
-      new_order <- c(i, new_order[new_order != i])
-      
-      comm_ordered <- pa_table[new_order, ]
-      
-      # 1 for absence, 0 for presence
-      comm_bool <- (comm_ordered == 0) * 1
-      rich <- apply(comm_bool, 2, cumprod)
-      S <- rowSums(1 - rich)
-      
-      spat_ext <- dist_to_site[order(dist_to_site)]
-      samp_eff <- seq_len(n)
-      
-      out_list[[i]] <- dplyr::tibble(
-        spat_ext = spat_ext,
-        samp_eff = samp_eff,
-        S = S
-      )
-    }
-  } else if (method == "area") {
-    # Compute full pairwise dist for ordering (euclidean assumed for area ordering)
-    pair_dist <- as.matrix(stats::dist(coords))
-        
-    for (i in 1:n) {
-      dist_to_site <- pair_dist[i, ]
-      
-      # Randomize order to avoid bias for tied distances
-      new_order <- sample(seq_len(n))
-      new_order <- new_order[order(dist_to_site[new_order])]
-      
-      # Move focal site to the front
-      new_order <- c(i, new_order[new_order != i])
-      
-      coords_ordered <- as.matrix(coords[new_order, ])
-      
-      # First point: effort 0
-      spat_ext <- numeric(n)
-      spat_ext[1] <- 0
-      
-      # Second point: distance to first (non-zero area starts at 3rd)
-      spat_ext[2] <- dist_to_site[order(dist_to_site)][1]  # or 0, but match mobr
-      
-      # Convex hull areas for 3 to n
-      for (j in 3:n) {
-        hpts <- grDevices::chull(coords_ordered[1:j, 1], coords_ordered[1:j, 2])
-        hpts <- c(hpts, hpts[1])
-        chull_coords <- as.matrix(coords_ordered[hpts, ])
-        chull_poly <- sf::st_polygon(list(chull_coords))
-        chull_area <- sf::st_area(chull_poly)
-        spat_ext[j] <- as.numeric(chull_area)
-      }
-
-      comm_ordered <- pa_table[new_order, ]
-      comm_bool <- (comm_ordered == 0) * 1
-      rich <- apply(comm_bool, 2, cumprod)
-      S <- rowSums(1 - rich)
-      samp_eff <- seq_len(n)
-
-      out_list[[i]] <- dplyr::tibble(
-        spat_ext = spat_ext,
-        samp_eff = samp_eff,
-        S = S
-      )
-    }
-  }
-  
-  # Compute richness curves (common to all)
-  scr_mat <- matrix(0, n, n)
-  for (i in 1:n) {
-    new_order <- sample(seq_len(n))
-    new_order <- new_order[order(pair_dist[i, new_order])]
-    new_order <- c(i, new_order[new_order != i])
-    
-    comm_ordered <- pa_table[new_order, ]
-    comm_bool <- (comm_ordered == 0) * 1
-    rich <- apply(comm_bool, 2, cumprod)
-    
-    scr_mat[i, ] <- ncol(pa_table) - rowSums(rich)
-  }
-  
-  # Combine output into a single data frame
-  out_dat <- dplyr::bind_rows(out_list)
+  # Shared spatial accumulation + richness computation
+  out_dat <- spat_acc(
+    sampled_data = model_sample,
+    method = method,
+    n_focal = n_focal,
+    compute_richness = TRUE
+  )
   
   # Cutoff logic
   if (cutoff & method == "euclidean") {
     d_cut <- model_sample$grid_size[1] / 2
-    out_dat <- out_dat %>%
-      dplyr::filter(spat_ext <= d_cut)
+    out_dat <- out_dat %>% dplyr::filter(spat_ext <= d_cut)
   } else if (cutoff & method == "area") {
     gs <- model_sample$grid_size[1]
     a_cut <- (gs ^ 2) / 4  # 1/4 grid surface
-    out_dat <- out_dat %>%
-      dplyr::filter(spat_ext <= a_cut)
+    out_dat <- out_dat %>% dplyr::filter(spat_ext <= a_cut)
   }
-
+  
   # Fit model - GAM with monotonously increasing constraint
   scam1 <- scam::scam(S ~ s(spat_ext, bs = "mpi") + s(samp_eff),
                       data = out_dat, family = "poisson")
   
-  # Effort grid for interpolation
-  if (is.null(spatvec)) {
-    spatvec <- seq(min(out_dat$spat_ext, na.rm = TRUE),
-                   max(out_dat$spat_ext, na.rm = TRUE),
-                   length = 200)
+  # Prepare prediction grid
+  if (!is.null(effort_ref)) {
+    # Use provided standardized effort reference
+    out_pred <- effort_ref
+  } else {
+    # Fallback: scenario-specific median effort per spat_ext
+    if (is.null(spatvec)) {
+      spatvec <- seq(min(out_dat$spat_ext, na.rm = TRUE),
+                     max(out_dat$spat_ext, na.rm = TRUE),
+                     length = 200)
+    }
+    
+    out_pred <- out_dat %>%
+      dplyr::group_by(spat_ext) %>%
+      dplyr::summarise(samp_eff = median(samp_eff, na.rm = TRUE), .groups = "drop") %>%
+      dplyr::right_join(data.frame(spat_ext = spatvec), by = "spat_ext") %>%
+      tidyr::fill(samp_eff, .direction = "updown")
   }
   
-  # Predict sampling effort for each spatial extent
-  lm_ss <- lm(samp_eff ~ spat_ext, data = out_dat)
-
-
-  samp_eff_pred <- predict(lm_ss, newdata = data.frame(spat_ext = spatvec))
-
-  out_pred <- data.frame(spat_ext = spatvec, samp_eff = samp_eff_pred)
+  pred <- predict(scam1, newdata = out_pred, se = TRUE, type = "response")
   
-  pred <- predict(scam1, out_pred, se = TRUE, type = "response")
-
-  out_pred$S <- pred$fit
-  out_pred$S_low <- pred$fit - 2*pred$se.fit
-  out_pred$S_high <- pred$fit + 2*pred$se.fit
-
   out_pred <- out_pred %>%
-    group_by(spat_ext) %>%
-    summarise(S = mean(S), 
-              S_low = mean(S_low), 
-              S_high = mean(S_high))
+    dplyr::mutate(S = pred$fit,
+                  S_low = pred$fit - 2 * pred$se.fit,
+                  S_high = pred$fit + 2 * pred$se.fit)
   
   out <- list(data   = out_dat,    
               smooth = out_pred)   
@@ -234,53 +126,59 @@ plot.sSBR <- function(sSBR_object,
                       col = "midnightblue",
                       all_lines = TRUE,
                       ...) {
-  
-  dat <- sSBR_object$data
-  sm  <- sSBR_object$smooth
-  meth <- attr(sSBR_object, "method")
-  
-  # Dynamic x-label based on method
-  xlab <- switch(meth,
-                 "euclidean" = "Euclidean distance",
-                 "toroidal"  = "Toroidal distance",
-                 "area"      = "Cumulative convex hull area")
-  
-  # Transparency scales with number of curves (only if plotting them)
+  data <- sSBR_object$data
+  smooth <- sSBR_object$smooth
+  method <- attr(sSBR_object, "method")
+
+  x_dat <- if ("spat_ext" %in% names(data)) "spat_ext" else "effort"
+  x_sm <- if ("spat_ext" %in% names(smooth)) "spat_ext" else "effort"
+
+  xlab <- switch(
+    method,
+    euclidean = "Euclidean distance",
+    toroidal = "Toroidal distance",
+    area = "Cumulative convex hull area",
+    "Spatial extent"
+  )
+
+  graphics::plot(
+    NA,
+    xlim = range(data[[x_dat]], na.rm = TRUE),
+    ylim = range(data$S, na.rm = TRUE),
+    xlab = xlab,
+    ylab = "Cumulative species richness",
+    las = 1,
+    ...
+  )
+
   if (all_lines) {
-    a <- 1 / sqrt(nrow(dat) / 300)
+    a <- 1 / sqrt(nrow(data) / 300)
     alpha <- pmax(0.05, pmin(0.75, a))
-  }
-  
-  # Base plot setup
-  graphics::plot(NA,
-                 xlim = range(dat$effort, na.rm = TRUE),
-                 ylim = range(dat$S, na.rm = TRUE),
-                 xlab = xlab,
-                 ylab = "Cumulative species richness",
-                 las = 1)
-  
-  # Individual rarefaction curves (optional, semi-transparent)
-  if (all_lines) {
-    for (i in unique(dat$id)) {
-      tmp <- dat[dat$id == i, ]
-      graphics::lines(tmp$effort,
-                      tmp$S,
-                      col = colorspace::adjust_transparency(col, alpha = alpha))
+
+    for (i in unique(data$id)) {
+      tmp <- data[data$id == i, , drop = FALSE]
+      graphics::lines(
+        tmp[[x_dat]],
+        tmp$S,
+        col = colorspace::adjust_transparency(col, alpha = alpha)
+      )
     }
   }
-  
-  # 95% CI ribbon for smooth
-  graphics::polygon(c(sm$effort, rev(sm$effort)),
-                    c(sm$S_low, rev(sm$S_high)),
-                    col = colorspace::adjust_transparency(col, alpha = .5),
-                    border = NA)
-  
-  # Central smooth line (always plotted, bold)
-  graphics::lines(sm$effort,
-                  sm$S,
-                  col = colorspace::darken(col, amount = .4),
-                  lwd = 3)
-  
+
+  graphics::polygon(
+    c(smooth[[x_sm]], rev(smooth[[x_sm]])),
+    c(smooth$S_low, rev(smooth$S_high)),
+    col = colorspace::adjust_transparency(col, alpha = 0.5),
+    border = NA
+  )
+
+  graphics::lines(
+    smooth[[x_sm]],
+    smooth$S,
+    col = colorspace::darken(col, amount = 0.4),
+    lwd = 3
+  )
+
   invisible(sSBR_object)
 }
 

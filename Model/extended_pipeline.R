@@ -61,10 +61,14 @@ cat("Block start =", last_sim_id, "→ sim_id =", sim_id, "task =", task_id, "\n
 
 # Parameter table
 var_par_df <- tidyr::expand_grid(
-  ac = seq(0.1, 0.9, 0.2), frag = c(0.2, 0.5, 0.8),
+  ac = 0.7, frag = c(0.2, 0.5, 0.8),
   hab = 0.15, nb = 0.1, disp = 1, disp_dist = 2, edge = 1
 )
-var_par <- var_par_df[task_id, ]
+
+# 10 repetitions of each scenario, so task_id 1-10 = scenario 1, task_id 11-20 = scenario 2, etc.
+n_scenarios <- nrow(var_par_df)
+idx <- ((task_id - 1) %% n_scenarios) + 1
+var_par <- var_par_df[idx, ]
 
 # Compute scenario  key for logging
 scenario_key <- paste0("ac", sprintf("%.1f", var_par$ac), "_frag", var_par$frag, "_hab", sprintf("%.2f", var_par$hab))

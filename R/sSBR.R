@@ -93,6 +93,7 @@ sSBR <- function(model_sample,
     # Use provided standardized effort reference
     out_pred <- effort_ref
   } else {
+    
     # Fallback: scenario-specific median effort per spat_ext
     if (is.null(spatvec)) {
       spatvec <- seq(min(out_dat$spat_ext, na.rm = TRUE),

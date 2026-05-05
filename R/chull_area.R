@@ -3,19 +3,28 @@ chull_area <- function(
   x_col = "x_loc",
   y_col = "y_loc"
 ) {
-  if (nrow(data) < 3) {
-    return(0)
+
+  if (nrow(data) < 3) return(0)
+  
+  # resolve column positions
+  if (is.numeric(x_col)) x_idx <- x_col else x_idx <- match(x_col, colnames(data))
+  if (is.numeric(y_col)) y_idx <- y_col else y_idx <- match(y_col, colnames(data))
+
+  # fallback to first two columns if named columns not found
+  if (is.na(x_idx) || is.na(y_idx)) {
+    x_idx <- 1L
+    y_idx <- 2L
   }
 
-  x <- data[[x_col]]
-  y <- data[[y_col]]
+  x <- data[[x_idx]]
+  y <- data[[y_idx]]
 
   hull_idx <- chull(x, y)
   xh <- x[hull_idx]
   yh <- y[hull_idx]
 
   # Shoelace formula
-  area <- 0.5 * abs(sum(xh * c(yh[-1], yh[1]) - yh * c(xh[-1], xh[1])))
+  area <- abs(sum(xh * c(yh[-1], yh[1]) - yh * c(xh[-1], xh[1]))) / 2
   return(area)
 }
 

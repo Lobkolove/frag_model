@@ -93,8 +93,8 @@ results <- clean_run(
   sim_id = sim_id,
   seed = master_seed,
   record_steps = c(
-    # "start",
-    # "pre_fragmentation",
+    "start",
+    "pre_fragmentation",
     "post_fragmentation",
     "final"
   )
@@ -135,7 +135,7 @@ final_log <- data.table(
   run_date = Sys.Date(), project_version = "frag_v1",
   ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
   disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
-  seed = seed_used, status = "complete",
+  seed = master_seed, status = "complete",
   state_file = state_file,
   sampled_files = paste(sampled_files, collapse = "; ")
 )

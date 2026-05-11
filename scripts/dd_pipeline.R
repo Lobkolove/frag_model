@@ -1,25 +1,86 @@
-sim_id <- 1
-ac_levels <- seq(0.1, 0.9, by = 0.2)
-frag_levels <- c(0.2, 0.5, 0.8)
+library(tidyverse)
+source("R/dist_decay.R")
+source("R/toroidal_dist.R")
 
-data_list <- list()
+# Read in all full sampled datasets with an autocorrelation of 0.7
+sampled_files <- list.files("output/sampled_data/", 
+                            pattern = "ac0\\.7.*samp_all\\.csv$", 
+                            full.names = TRUE)
 
-# For each ac level, read in all sampled data and merge
-for (ac in ac_levels) {
-  # Initialize an empty list to store data frames
-  tmp_list <- list()
+# Create a list with all datasets
+data_list <- map(sampled_files, read_csv)
+
+# Convert to wide format for spatial curve analyses
+data_wide <- data_list %>%
+  map(
+    ~ .x %>%
+      tidyr::pivot_wider(
+        names_from = species_id,
+        values_from = n,
+        values_fill = 0,
+        names_prefix = "sp_",
+        names_sort = TRUE
+      )
+  )
+
+# Run distance decay for each dataset
+dd_results <- list(post_frag = vector("list", length(data_wide)), 
+                   end = vector("list", length(data_wide)))
+for (i in seq_along(data_wide)) {
+  start <- Sys.time()
+  cat("Processing dataset", i, "( fragmentation =", data_wide[[i]]$fragmentation[1], "| ac_amount = " , data_wide[[i]]$ac_amount[1], ")\n")
+
+  sim_id <- data_wide[[i]]$sim_id[1]
+  fragmentation <- data_wide[[i]]$fragmentation[1]
+
+  post_frag <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "post_fragmentation")
+
+  end <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "final")
+
+  dd_results$post_frag[[i]] <- dist_decay(
+    post_frag,
+    dist_type = "toroidal",
+    distvec = seq(0, 35, length.out = 200)
+  )$smooth %>%
+    dplyr::select(distance, similarity) %>%
+    dplyr::mutate(sim_id = sim_id, fragmentation = fragmentation, step = "post_frag")
+
+  dd_results$end[[i]] <- dist_decay(
+    end,
+    dist_type = "toroidal",
+    distvec = seq(0, 35, length.out = 200)
+  )$smooth %>%
+    dplyr::select(distance, similarity) %>%
+    dplyr::mutate(sim_id = sim_id, fragmentation = fragmentation, step = "final")
   
-  # Loop through each frag level and read the corresponding CSV file
-  for (frag in frag_levels) {
-    file_name <- paste0("data-raw/sampled_data/sim_", sim_id, "_ac_", ac, "_frag_", frag, "_samp_random.csv")
-    tmp_list[[length(tmp_list) + 1]] <- read.csv(file_name)
-  }
-  
-  # Combine all data frames into one
-  combined_data <- do.call(rbind, tmp_list)
-
-  # Add the combined data frame to the main list
-  data_list[[as.character(ac)]] <- combined_data
+  end <- Sys.time()
+  cat("Time taken:", round(difftime(end, start, units = "secs"), 2), "seconds\n")
 }
+
+# Average distance decay curves across time step for each fragmentation level
+dd_summaries <- map(dd_results, ~ .x %>%
+  bind_rows() %>%
+  group_by(step, fragmentation, distance) %>%
+  summarise(similarity = mean(similarity, na.rm = TRUE),
+            simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+            simi_high = quantile(similarity, 0.975, na.rm = TRUE), .groups = "drop") %>%
+  mutate(fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), labels = c("Low", "Medium", "High"))))
+dd_summary <- bind_rows(dd_summaries) %>% 
+  mutate(step = factor(step, levels = c("post_frag", "final"), labels = c("Post-fragmentation", "End of simulation")))
+
+# Plot distance decay curves
+pal <- c(colorspace::lighten("midnightblue", 0.2), colorspace::lighten("violetred4", 0.2), colorspace::lighten("seagreen4", 0.2))
+ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
+  facet_wrap(~ step) +
+  scale_color_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  labs(x = "Toroidal Distance", y = "Similarity") +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "bottom")
+
 
 

@@ -109,7 +109,7 @@ saveRDS(results, state_file)
 # Sampling
 recorded_steps <- names(results)
 sampled_files <- character()
-sampling_methods <- c("all", "chessboard", "random")
+sampling_methods <- c("all", "checkerboard", "random")
 
 for (method in sampling_methods) {
   sampled <- list()

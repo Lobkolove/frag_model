@@ -52,7 +52,6 @@ fragment <- function(full_state,
   
   grid <- full_state$grid
   agents <- full_state$agents
-  agents_grid <- full_state$agents_grid
   ss_abund <- full_state$ss_abund
   
   # Apply fragmentation to grid
@@ -69,11 +68,6 @@ fragment <- function(full_state,
   clumped <- toroidal_clump(fragmented_grid, directions = 4)
   patch_matrix <- as.matrix(clumped)
   agents$patch_id <- patch_matrix[cbind(agents$x_loc, agents$y_loc)]
-  
-  # Update agents_grid (turn matrix cells to NA)
-  if (!is.null(agents_grid)) {
-    agents_grid[is.na(fragmented_grid)] <- NA
-  }
 
   # Update ss_abund (turn matrix cells to NA)
   ss_abund <- ss_abund %>%
@@ -82,20 +76,19 @@ fragment <- function(full_state,
       n = ifelse(habitat, n, NA)
     ) %>%
     dplyr::select(-habitat)
+
+  meta <- full_state$meta
+  meta$fragmentation <- fragmentation
+  meta$habitat <- habitat
   
   record_state(
     core_state = list(
       grid = fragmented_grid,
       agents = agents,
-      agents_grid = agents_grid,
       step = full_state$step
     ),
-    sim_id = full_state$sim_id,
-    master_seed = full_state$master_seed,
-    grid_size = full_state$grid_size,
-    ac_amount = full_state$ac_amount,
-    fragmentation = fragmentation,
-    habitat = habitat,
+    meta = meta,
     step_label = "post_fragmentation"
   )
 }
+

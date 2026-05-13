@@ -29,6 +29,21 @@ clean_run <- function(mod_par,
     master_seed <- round(runif(1, 0, 1e6))
     set.seed(master_seed)
   }
+
+  # Initialize metadata for recording 
+  # (habitat and fragmentation will be updated after fragmentation event)
+  meta <- list(
+    sim_id = sim_id,
+    master_seed = master_seed,
+    grid_size = mod_par$grid_size,
+    ac_amount = var_par$ac,
+    fragmentation = NA_real_,
+    habitat = 1,
+    niche_breadth = var_par$nb,
+    edge_effect = var_par$edge,
+    dispersal = var_par$disp,
+    dispersal_dist = var_par$disp_dist
+  )
   
   # Initialization ----------------------------------------------------------
   
@@ -64,12 +79,7 @@ clean_run <- function(mod_par,
   if ("start" %in% record_steps) {
     state_list[["start"]] <- record_state(
       core_state = model_start,
-      sim_id = sim_id,
-      master_seed = master_seed,
-      grid_size = mod_par$grid_size,
-      ac_amount = var_par$ac,
-      fragmentation = NA_real_,
-      habitat = NA_real_,
+      meta = meta,
       step_label = "start"
     )
   }
@@ -107,12 +117,7 @@ clean_run <- function(mod_par,
 
   full_state <- record_state(
     core_state = model_state,
-    sim_id = sim_id,
-    master_seed = master_seed,
-    grid_size = mod_par$grid_size,
-    ac_amount = var_par$ac,
-    fragmentation = NA_real_,
-    habitat = NA_real_,
+    meta = meta,
     step_label = "pre_fragmentation"
   )
 
@@ -123,16 +128,20 @@ clean_run <- function(mod_par,
   }
 
   # Fragmentation event -----------------------------------------------------
-  
 
-
-  frag_out <- fragment(full_state = full_state,
-                       habitat = var_par$hab,
-                       fragmentation = var_par$frag)
+  frag_out <- fragment(
+    full_state = full_state,
+    habitat = var_par$hab,
+    fragmentation = var_par$frag
+  )
   
   if (switch$print_agents == 1) {
     print("FRAGMENTATION")
   }
+  
+  # Update metadata with fragmentation parameters
+  meta$fragmentation <- var_par$frag
+  meta$habitat <- var_par$hab
   
   # Record immediately after fragmentation
   if ("post_fragmentation" %in% record_steps) {
@@ -174,12 +183,7 @@ clean_run <- function(mod_par,
   if ("final" %in% record_steps) {
     state_list[["final"]] <- record_state(
       core_state = model_state,
-      sim_id = sim_id,
-      master_seed = master_seed,
-      grid_size = mod_par$grid_size,
-      ac_amount = var_par$ac,
-      fragmentation = var_par$frag,
-      habitat = var_par$hab,
+      meta = meta,
       step_label = "final"
     )
   }

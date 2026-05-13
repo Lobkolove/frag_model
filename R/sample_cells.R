@@ -61,7 +61,7 @@
 #'
 #' @export
 sample_cells <- function(full_state,
-                         method = c("all", "random", "chessboard"),
+                         method = c("all", "random", "checkerboard"),
                          n_samples = NULL,
                          format = c("wide", "long"),
                          seed = NULL) {
@@ -94,7 +94,7 @@ sample_cells <- function(full_state,
       sample(habitat_cells, n_samples)    
     },
     
-    chessboard = {
+    checkerboard = {
       # Every other cell based on parity of row + column
       keep <- (coords[, 1] + coords[, 2]) %% 2 == 0
       habitat_cells[keep]
@@ -123,14 +123,18 @@ sample_cells <- function(full_state,
   samples$patch_size <- unname(patches[as.character(samples$patch_id)])
   
   # Add static metadata columns 
+  meta <- full_state$meta
   samples <- samples %>% 
-    dplyr::mutate(sim_id         = full_state$sim_id,
-                  master_seed    = full_state$master_seed,
+    dplyr::mutate(sim_id         = meta$sim_id,
+                  master_seed    = meta$master_seed,
+                  grid_size      = meta$grid_size,
+                  fragmentation  = meta$fragmentation,
+                  ac_amount      = meta$ac_amount,
+                  edge_effect    = meta$edge_effect,
+                  dispersal      = meta$dispersal,
+                  disp_dist      = meta$dispersal_dist,
                   step           = full_state$step,
                   step_label     = full_state$step_label,
-                  grid_size      = full_state$grid_size,
-                  ac_amount      = full_state$ac_amount,
-                  fragmentation  = full_state$fragmentation,
                   samp_method    = method)
   
   

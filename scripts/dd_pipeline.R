@@ -41,16 +41,16 @@ for (i in seq_along(data_wide)) {
 
   dd_results$post_frag[[i]] <- dist_decay(
     post_frag,
-    dist_type = "toroidal",
-    distvec = seq(0, 35, length.out = 200)
+    dist_type = "euclidean",
+    distvec = seq(0, 25, length.out = 200)
   )$smooth %>%
     dplyr::select(distance, similarity) %>%
     dplyr::mutate(sim_id = sim_id, fragmentation = fragmentation, step = "post_frag")
 
   dd_results$end[[i]] <- dist_decay(
     end,
-    dist_type = "toroidal",
-    distvec = seq(0, 35, length.out = 200)
+    dist_type = "euclidean",
+    distvec = seq(0, 25, length.out = 200)
   )$smooth %>%
     dplyr::select(distance, similarity) %>%
     dplyr::mutate(sim_id = sim_id, fragmentation = fragmentation, step = "final")
@@ -63,22 +63,22 @@ for (i in seq_along(data_wide)) {
 dd_summaries <- map(dd_results, ~ .x %>%
   bind_rows() %>%
   group_by(step, fragmentation, distance) %>%
-  summarise(similarity = mean(similarity, na.rm = TRUE),
-            simi_low = quantile(similarity, 0.025, na.rm = TRUE),
-            simi_high = quantile(similarity, 0.975, na.rm = TRUE), .groups = "drop") %>%
+  summarise(simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+            simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+            similarity = mean(similarity, na.rm = TRUE), .groups = "drop") %>%
   mutate(fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), labels = c("Low", "Medium", "High"))))
 dd_summary <- bind_rows(dd_summaries) %>% 
   mutate(step = factor(step, levels = c("post_frag", "final"), labels = c("Post-fragmentation", "End of simulation")))
 
 # Plot distance decay curves
-pal <- c(colorspace::lighten("midnightblue", 0.2), colorspace::lighten("violetred4", 0.2), colorspace::lighten("seagreen4", 0.2))
+pal <- c("midnightblue", "darkgoldenrod", "violetred4")
 ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
-  geom_line(linewidth = 1) +
+  geom_line(linewidth = 1, alpha = 0.8) +
   geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
   facet_wrap(~ step) +
   scale_color_manual(values = pal) +
   scale_fill_manual(values = pal) +
-  labs(x = "Toroidal Distance", y = "Similarity") +
+  labs(x = "Euclidean Distance", y = "Similarity") +
   theme_bw(base_size = 14) +
   theme(legend.position = "bottom")
 

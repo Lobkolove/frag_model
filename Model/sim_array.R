@@ -1,5 +1,6 @@
-library(data.table)
+# Script to run an array job of simulations with different parameter combinations (cluster)
 library(here)
+library(data.table)
 library(digest)
 library(raster)
 library(dplyr)
@@ -42,9 +43,6 @@ output_dir <- here("output")
 log_file <- file.path(output_dir, "simulations_log.csv")
 state_dir <- file.path(output_dir, "model_states")
 sampled_dir <- file.path(output_dir, "sampled_data")
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(state_dir, showWarnings = FALSE)
-dir.create(sampled_dir, showWarnings = FALSE)
 
 # Unique sim_id generation using block allocation to avoid concurrency issues
 last_sim_id <- 0
@@ -65,13 +63,13 @@ var_par_df <- tidyr::expand_grid(
   hab = 0.15, nb = 0.1, disp = 1, disp_dist = 2, edge = 1
 )
 
-# 10 repetitions of each scenario, so task_id 1-10 = scenario 1, task_id 11-20 = scenario 2, etc.
+# Determine which parameter combination to run based on task_id
 n_scenarios <- nrow(var_par_df)
 idx <- ((task_id - 1) %% n_scenarios) + 1
 var_par <- var_par_df[idx, ]
 
 # Compute scenario  key for logging
-scenario_key <- paste0("ac", sprintf("%.1f", var_par$ac), "_frag", var_par$frag, "_hab", sprintf("%.2f", var_par$hab))
+scenario_key <- paste0("ac", var_par$ac, "_frag", var_par$frag, "_edge", var_par$edge, "_disp", var_par$disp_dist)
 
 # True per-parameter replicate numbering
 replicate_num <- 1
@@ -101,8 +99,8 @@ results <- clean_run(
 )
 
 # Save model states
-state_file <- file.path(state_dir, paste0(sim_id, "_", scenario_key, 
-"_r", sprintf("%03d", replicate_num), ".rds"))
+filename <- paste0(sim_id, "_", scenario_key, "_r", sprintf("%03d", replicate_num))
+state_file <- file.path(state_dir, paste0(filename, ".rds"))
 saveRDS(results, state_file)
 
 
@@ -131,15 +129,25 @@ for (method in sampling_methods) {
 
 # Single atomic log write to avoid concurrency issues
 final_log <- data.table(
-  sim_id, task_id, job_id, scenario_key, replicate_num,
-  run_date = Sys.Date(), project_version = "frag_v1",
-  ac = var_par$ac, frag = var_par$frag, hab = var_par$hab, nb = var_par$nb,
-  disp = var_par$disp, disp_dist = var_par$disp_dist, edge = var_par$edge,
-  seed = master_seed, status = "complete",
-  state_file = state_file,
+  sim_id = sim_id, 
+  job_id = job_id, 
+  scenario_key = scenario, 
+  replicate_num = replicate_num,
+  run_date = Sys.Date(), 
+  project_version = "1.1",
+  master_seed = master_seed, 
+  ac_amount = var_par$ac, 
+  fragmentation = var_par$frag, 
+  habitat = var_par$hab, 
+  niche_breadth = var_par$nb,
+  dispersal = var_par$disp, 
+  dispersal_dist = var_par$disp_dist, 
+  edge = var_par$edge,
+  status = "complete",
+  state_file = path_rel(state_file, start = here()),
   sampled_files = paste(sampled_files, collapse = "; ")
 )
 
-fwrite(final_log, log_file, append = !file.exists(log_file), logical01 = TRUE)
+fwrite(final_log, log_file, append = file.exists(log_file), logical01 = TRUE)
 
 cat("✓", sim_id, "\n\n")

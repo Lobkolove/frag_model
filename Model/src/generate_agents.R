@@ -18,14 +18,12 @@ generate_agents <- function(n_species, pop, grid, seed = NULL) {
       ID = 1:pop,
       species_id = sample(1:n_species, pop, replace = T),
       x_loc = 0,
-      y_loc = 0,
-      patch_id = 0
+      y_loc = 0
     )
   })
 
   # for optimization purposes, trying to run th model with 'agents' as a matrix instead of df
-
-  agents_df1 <- as.matrix(agents_df)
+  # agents_df1 <- as.matrix(agents_df)
   
   return(agents_df)
 }

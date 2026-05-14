@@ -4,10 +4,7 @@
 # individuals from the species pool back into the simulation.
 # This allows "extinct" species to re-establish in the system.
 
-immigration <- function(agents, agents_grid, grid) {
-
-  # get a clumped raster for extracting patch ID
-  clumped <- clump(grid, directions = 4)
+immigration <- function(agents, grid) {
 
   for (i in 1:mod_par$n_immigrants) {
     rand <- runif(1, 0, 1) # random number for survival prob
@@ -27,25 +24,17 @@ immigration <- function(agents, agents_grid, grid) {
 
       if (survival_prob > rand) {
 
-        # Set agent grid to the new ind species id
-        if (!is.null(agents_grid)) {
-          agents_grid[rand_loc[1], rand_loc[2]] <- cur_spec
-        }
-
         # update agents list
         new_row <- data.table(
           ID = i,
           species_id = cur_spec,
           x_loc = rand_loc[1],
-          y_loc = rand_loc[2],
-          patch_id = clumped[rand_loc[1], rand_loc[2]]
+          y_loc = rand_loc[2]
         )
         agents <- rbindlist(list(agents, new_row), use.names = T)
       }
     }
   }
 
-
-  return_list <- list(agents = agents, agents_grid = agents_grid)
-  return(return_list)
+  return(agents)
 }

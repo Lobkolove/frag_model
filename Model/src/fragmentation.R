@@ -47,7 +47,7 @@ ls_mask <- function(grid,
 fragment <- function(full_state,
                      habitat,
                      fragmentation,
-                     seed_fragment = NULL,
+                     seed = NULL,
                      ...) {
   
   grid <- full_state$grid
@@ -58,16 +58,11 @@ fragment <- function(full_state,
   fragmented_grid <- ls_mask(grid = grid,
                              habitat = habitat,
                              fragmentation = fragmentation,
-                             seed = seed_fragment)
+                             seed = seed)
   
   # Only keep agents which are on habitat cells 
   keep <- !is.na(fragmented_grid[cbind(agents$x_loc, agents$y_loc)])
   agents <- agents[keep, , drop = FALSE]
-  
-  # Assign patch number (id) to each agent
-  clumped <- toroidal_clump(fragmented_grid, directions = 4)
-  patch_matrix <- as.matrix(clumped)
-  agents$patch_id <- patch_matrix[cbind(agents$x_loc, agents$y_loc)]
 
   # Update ss_abund (turn matrix cells to NA)
   ss_abund <- ss_abund %>%

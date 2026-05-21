@@ -16,4 +16,4 @@
 module add R
 module add GDAL
 
-Rscript "extended_pipeline.R" ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_JOB_ID}
+Rscript "sim_array.R" ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_JOB_ID}

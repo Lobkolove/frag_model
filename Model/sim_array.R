@@ -59,8 +59,13 @@ cat("Block start =", last_sim_id, "→ sim_id =", sim_id, "task =", task_id, "\n
 
 # Parameter table
 var_par_df <- tidyr::expand_grid(
-  ac = 0.7, frag = c(0.2, 0.5, 0.8),
-  hab = 0.15, nb = 0.1, disp = 1, disp_dist = 2, edge = 1
+  ac = 0.7,
+  frag = c(0.2, 0.5, 0.8),
+  hab = 0.15,
+  nb = 0.1,
+  disp = 1,
+  disp_dist = c(1, 5, 10),
+  edge = 1
 )
 
 # Determine which parameter combination to run based on task_id

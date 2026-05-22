@@ -29,32 +29,45 @@ for (state_file in state_files) {
   state_data <- readRDS(state_file)
   recorded_steps <- names(state_data)
 
+  # Initialize list vector with length and names of recorded steps
   new_states <- vector("list", length(recorded_steps))
+  names(new_states) <- recorded_steps
 
-  for (step in recorded_steps) {
+  for (step_label in recorded_steps) {
     
-    single_state <- state_data[[step]]
-    
-    # Extract metadata 
-    meta <- list(
-      sim_id = single_state$sim_id,
-      master_seed = single_state$master_seed,
-      grid_size = single_state$grid_size,
-      ac_amount = single_state$ac_amount,
-      fragmentation = single_state$fragmentation,
-      habitat = single_state$habitat,
-      niche_breadth = 0.1,
-      edge = 1, 
-      dispersal = 1,
-      dispersal_dist = 2
-    )
+    single_state <- state_data[[step_label]]
 
-    # Append reformated state to the new object
-    new_states[[step]] <- list(
-      meta = meta,
-      grid = single_state$grid,
-      agents = single_state$agents,
-      ss_abund = single_state$ss_abund
+    # Check if state has a meta object
+    if (is.null(single_state$meta)) {
+      # Extract metadata 
+      meta <- list(
+        sim_id = single_state$sim_id,
+        master_seed = single_state$master_seed,
+        grid_size = single_state$grid_size,
+        ac_amount = single_state$ac_amount,
+        habitat = single_state$habitat,
+        fragmentation = single_state$fragmentation,
+        niche_breadth = 0.1,
+        edge_effect = 1, 
+        dispersal = 1,
+        dispersal_dist = 2
+      )
+    } else {
+      meta <- single_state$meta
+      if (is.null(meta$edge_effect)) meta$edge_effect <- meta$edge
+    }
+
+    # Append reformatted state to the new object
+    new_states[[step_label]] <- structure(
+      list(
+        meta = meta,
+        step = single_state$step,
+        step_label = step_label,
+        grid = single_state$grid,
+        agents = single_state$agents,
+        ss_abund = single_state$ss_abund
+      ),
+      class = c("model_state", "full_state", "list")
     )
   }
 
@@ -62,7 +75,7 @@ for (state_file in state_files) {
   if (file.exists(log_file)) {
     log <- fread(log_file)
     reps <- log[ac_amount == meta$ac_amount & fragmentation == meta$fragmentation & 
-                  habitat == meta$habitat & niche_breadth == meta$niche_breadth & edge == meta$edge & 
+                  habitat == meta$habitat & niche_breadth == meta$niche_breadth & edge_effect == meta$edge_effect & 
                   dispersal == meta$dispersal & dispersal_dist == meta$dispersal_dist]
     replicate_num <- if (nrow(reps) > 0) max(reps$replicate_num, na.rm = TRUE) + 1 else 1
   } else {
@@ -70,7 +83,7 @@ for (state_file in state_files) {
   }
 
   # Construct the new filename
-  scenario <- paste0("ac", meta$ac_amount, "_frag", meta$fragmentation, "_edge", meta$edge, "_disp", meta$dispersal_dist)
+  scenario <- paste0("ac", meta$ac_amount, "_frag", meta$fragmentation, "_edge", meta$edge_effect, "_disp", meta$dispersal_dist)
   new_filename <- paste0(
     meta$sim_id,
     "_",
@@ -90,6 +103,21 @@ for (state_file in state_files) {
     
     old_sampled_file <- file.path(old_sampled_dir, paste0(old_filename, "_samp_", sampling_methods[[method]], ".csv"))
     table <- fread(old_sampled_file)
+
+    # Add missing columns and reorder columns to match the new log format
+    table <- table %>% 
+      dplyr::mutate(habitat = meta$habitat, 
+                    niche_breadth = meta$niche_breadth,
+                    edge_effect = meta$edge_effect,
+                    dispersal = meta$dispersal,
+                    dispersal_dist = meta$dispersal_dist) %>% 
+      dplyr::select(
+        sim_id, master_seed, grid_size, fragmentation, ac_amount, 
+        habitat, niche_breadth, edge_effect, dispersal, dispersal_dist,
+        step, step_label, samp_method,
+        sample_id, cell_id, x_loc, y_loc, patch_id, patch_size,
+        species_id, n
+      )
 
     new_sampled_file <- file.path(new_sampled_dir, paste0(new_filename, "_samp_", method, ".csv"))
     fwrite(table, new_sampled_file, na = "NA")
@@ -112,7 +140,7 @@ for (state_file in state_files) {
     niche_breadth = meta$niche_breadth,
     dispersal = meta$dispersal, 
     dispersal_dist = meta$dispersal_dist, 
-    edge = meta$edge,
+    edge_effect = meta$edge_effect,
     status = "complete",
     state_file = path_rel(new_state_file, start = here()),
     sampled_files = paste(new_sampled_files, collapse = "; ")

@@ -74,17 +74,19 @@ idx <- ((task_id - 1) %% n_scenarios) + 1
 var_par <- var_par_df[idx, ]
 
 # Compute scenario  key for logging
-scenario_key <- paste0("ac", var_par$ac, "_frag", var_par$frag, "_edge", var_par$edge, "_disp", var_par$disp_dist)
+scenario <- paste0("ac", var_par$ac, "_frag", var_par$frag, "_edge", var_par$edge, "_disp", var_par$disp_dist)
 
 # True per-parameter replicate numbering
 replicate_num <- 1
 if (!is.null(existing_log)) {
-  scenario_reps <- existing_log[scenario_key == scenario_key]
-  if (nrow(scenario_reps) > 0) replicate_num <- max(scenario_reps$replicate_num) + 1
+  reps <- existing_log[ac_amount == var_par$ac & fragmentation == var_par$frag & 
+                        habitat == var_par$hab & niche_breadth == var_par$nb & edge_effect == var_par$edge & 
+                        dispersal == var_par$disp & dispersal_dist == var_par$disp_dist]
+  if (nrow(reps) > 0) replicate_num <- max(reps$replicate_num) + 1
 }
 
-cat("sim_id =", sim_id, "- task =", task_id, "- scenario =", scenario_key, 
-    "- rep =", replicate_num, "- ac =", var_par$ac, "frag =", var_par$frag, "\n")
+cat("sim_id =", sim_id, "| task =", task_id, "| scenario =", scenario, 
+    "| rep =", replicate_num, "| ac =", var_par$ac, "| frag =", var_par$frag, "\n")
 
 # Run simulation
 # master seed == last 3 digits of job_id + task_id to ensure unique seeds across runs
@@ -104,7 +106,7 @@ results <- clean_run(
 )
 
 # Save model states
-filename <- paste0(sim_id, "_", scenario_key, "_r", sprintf("%03d", replicate_num))
+filename <- paste0(sim_id, "_", scenario, "_r", sprintf("%03d", replicate_num))
 state_file <- file.path(state_dir, paste0(filename, ".rds"))
 saveRDS(results, state_file)
 
@@ -112,22 +114,20 @@ saveRDS(results, state_file)
 # Sampling
 recorded_steps <- names(results)
 sampled_files <- character()
-sampling_methods <- c("all", "checkerboard", "random")
+sampling_methods <- list(all = "all", cb = "checkerboard", rand = "random")
 
-for (method in sampling_methods) {
+for (method in names(sampling_methods)) {
   sampled <- list()
   for (step in recorded_steps) {
     sampled[[step]] <- sample_cells(results[[step]], 
-                                    method = method, 
+                                    method = sampling_methods[[method]], 
                                     n_samples = 30, 
                                     format = "long")
   }
   sampled_df <- rbindlist(sampled)
-  sampled_df[, `:=`(replicate_num = replicate_num)]
   
-  samp_file <- file.path(sampled_dir, paste0(sim_id, "_", scenario_key, 
-                                            "_r", sprintf("%03d", replicate_num), 
-                                            "_samp_", method, ".csv"))
+  samp_file <- file.path(sampled_dir, paste0(filename, "_samp_", method, ".csv")) 
+
   fwrite(sampled_df, samp_file, na = "NA")
   sampled_files <- c(sampled_files, samp_file)
 }
@@ -147,7 +147,7 @@ final_log <- data.table(
   niche_breadth = var_par$nb,
   dispersal = var_par$disp, 
   dispersal_dist = var_par$disp_dist, 
-  edge = var_par$edge,
+  edge_effect = var_par$edge,
   status = "complete",
   state_file = path_rel(state_file, start = here()),
   sampled_files = paste(sampled_files, collapse = "; ")

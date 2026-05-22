@@ -36,10 +36,10 @@ clean_run <- function(
     master_seed = master_seed,
     grid_size = mod_par$grid_size,
     ac_amount = var_par$ac,
-    fragmentation = NA_real_,
     habitat = 1,
+    fragmentation = NA_real_,
     niche_breadth = var_par$nb,
-    edge = var_par$edge,
+    edge_effect = var_par$edge,
     dispersal = var_par$disp,
     dispersal_dist = var_par$disp_dist
   )

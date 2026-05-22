@@ -104,7 +104,7 @@ sample_cells <- function(full_state,
   # Assess coordinates of sample cells
   sample_coords <- raster::rowColFromCell(grid, sampled_cells)
   
-  samples <- data.frame(
+  samples <- tibble::tibble(
     sample_id = seq_len(length(sampled_cells)),
     cell_id = sampled_cells,
     x_loc = sample_coords[, 1],
@@ -124,36 +124,43 @@ sample_cells <- function(full_state,
   
   # Add static metadata columns 
   meta <- full_state$meta
-  samples <- samples %>% 
-    dplyr::mutate(sim_id         = meta$sim_id,
-                  master_seed    = meta$master_seed,
-                  grid_size      = meta$grid_size,
-                  fragmentation  = meta$fragmentation,
-                  ac_amount      = meta$ac_amount,
-                  edge_effect    = meta$edge_effect,
-                  dispersal      = meta$dispersal,
-                  disp_dist      = meta$dispersal_dist,
-                  step           = full_state$step,
-                  step_label     = full_state$step_label,
-                  samp_method    = method)
+  meta_df <- tibble::tibble(
+    sim_id         = meta$sim_id,
+    master_seed    = meta$master_seed,
+    grid_size      = meta$grid_size,
+    ac_amount      = meta$ac_amount,
+    habitat        = meta$habitat,
+    fragmentation  = meta$fragmentation,
+    niche_breadth  = meta$niche_breadth,
+    edge_effect    = meta$edge_effect,
+    dispersal      = meta$dispersal,
+    disp_dist      = meta$dispersal_dist,
+    step           = full_state$step,
+    step_label     = full_state$step_label,
+    samp_method    = method
+  )
+
+  # Merge metadata with samples df (metadata first, then sample-specific columns)
+  meta_samp <- cbind(meta_df, samples)
   
   
   # Merge samples df and species abundances per cell
-  out_long <- dplyr::left_join(samples, 
-                               ss_abund, 
-                               by = c("x_loc", "y_loc"))
+  out_long <- dplyr::left_join(meta_samp, ss_abund, by = c("x_loc", "y_loc"))
   
   # Return long format
   if (format == "long") return(out_long)
 
   # If needed, reformat and return wide format
-  out_wide <- out_long %>% 
-    tidyr::pivot_wider(names_from  = species_id,
-                       values_from = n,
-                       values_fill = 0,
-                       names_prefix = "sp_",
-                       names_sort = TRUE) %>% 
+  out_wide <- out_long %>%
+    tidyr::pivot_wider(
+      names_from = species_id,
+      values_from = n,
+      values_fill = 0,
+      names_prefix = "sp_",
+      names_sort = TRUE
+    ) %>%
     dplyr::select(-sp_NA)
+  
   return(out_wide)
 
 }

@@ -8,6 +8,7 @@ birth <- function(agents, grid, nb, disp, d_dis) {
 
   # looping through all agents
   for (i in 1:nrow(agents)) {
+
     # generate random numbers between 0-1. (Should the numbers be instead pulled from a distribution?)
     rand <- runif(3, 0, 1)
 
@@ -15,12 +16,13 @@ birth <- function(agents, grid, nb, disp, d_dis) {
 
     u <- species_par$n_value[species_par$species_id == agents$species_id[i]]
 
+    # Extract species specific parameters for species of current agent
+    cur_spec_par <- species_par[species_par$species_id == agents$species_id[i], ]
+
     # check to see if species specific niche breadth OR the function argument which comes at the moment from var_par
 
     if (switch$species_specific_par == 1) {
-      nb <- species_par$niche_breadth[
-        species_par$species_id == agents$species_id[i]
-      ]
+      nb <- cur_spec_par$niche_breadth
     } else if (switch$species_specific_par == 0) {
       nb <- nb
     } else {
@@ -30,14 +32,11 @@ birth <- function(agents, grid, nb, disp, d_dis) {
     cur_loc <- c(agents$x_loc[i], agents$y_loc[i])
     # checking the birth rate parameter
     if (
-      rand[1] <
-        species_par$birth_rate[species_par$species_id == agents$species_id[i]]
+      rand[1] < cur_spec_par$birth_rate
     ) {
       #get dispersal rate
       if (switch$species_specific_par == 1) {
-        dr <- species_par$dispersal_rate[
-          species_par$species_id == agents$species_id[i]
-        ]
+        dr <- cur_spec_par$dispersal_rate
       } else if (switch$species_specific_par == 0) {
         dr <- disp
       } else {
@@ -67,13 +66,14 @@ birth <- function(agents, grid, nb, disp, d_dis) {
         inter_cell <- collapse::fnrow(inter_cell_subset)
 
         if (
-          new_loc_short[1] <= mod_par$grid_size &&
-            new_loc_short[1] >= 1 && # checking if new location is within the grid
-            new_loc_short[2] <= mod_par$grid_size &&
-            new_loc_short[2] >= 1 && # checking if new location is within the grid
-            !is.na(grid[new_loc_short[1], new_loc_short[2]]) && # checking if the grid cell is non-matrix (habitat)
-            inter_cell < mod_par$k_inter && # checking if the cell did not reach its inter-specific carrying capacity
-            intra_cell < mod_par$k_intra # checking if the cell did not reach its intra-specific carrying capacity
+          # The first checks are obsolete since toroidal disperse never leaves the grid.
+          # new_loc_short[1] <= mod_par$grid_size &&
+          #   new_loc_short[1] >= 1 && # checking if new location is within the grid
+          #   new_loc_short[2] <= mod_par$grid_size &&
+          #   new_loc_short[2] >= 1 && # checking if new location is within the grid
+          !is.na(grid[new_loc_short[1], new_loc_short[2]]) && # checking if the grid cell is non-matrix (habitat)
+          inter_cell < mod_par$k_inter && # checking if the cell did not reach its inter-specific carrying capacity
+          intra_cell < mod_par$k_intra # checking if the cell did not reach its intra-specific carrying capacity
         ) {
           # extract environmental value at the new location and calculate survival pro. according to Gravel 2006
           e <- grid[new_loc_short[1], new_loc_short[2]]

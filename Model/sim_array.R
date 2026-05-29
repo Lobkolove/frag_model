@@ -1,11 +1,12 @@
 # Script to run an array job of simulations with different parameter combinations (cluster)
 library(here)
+library(fs)
 library(data.table)
-library(digest)
+# library(digest)
 library(raster)
 library(dplyr)
 library(tidyr)
-library(ggplot2)
+library(igraph)
 
 # Model source files
 source(here("Model/parameters.R"))
@@ -21,13 +22,12 @@ source(here("Model/src/death.R"))
 source(here("Model/src/disperse.R"))
 source(here("Model/src/immigration.R"))
 source(here("Model/src/fragmentation.R"))
+source(here("Model/src/registry.R"))
 
 # Sampling and analysis source files
-source(here("R/toroidal_dist.R"))
 source(here("R/toroidal_clump.R"))
 source(here("R/sample_cells.R"))
-source(here("R/dist_decay.R"))
-source(here("R/sSBR.R"))
+
 
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -39,26 +39,27 @@ task_id <- as.numeric(args[1])
 job_id <- as.numeric(args[2])
 
 # Paths
-output_dir <- here("output")
-log_file <- file.path(output_dir, "simulations_log.csv")
-state_dir <- file.path(output_dir, "model_states")
-sampled_dir <- file.path(output_dir, "sampled_data")
+log_file <- "output/simulations_log.csv"
+state_dir <- "output/model_states"
+sampled_dir <- "output/sampled_data"
 
-# Unique sim_id generation using block allocation to avoid concurrency issues
+
+# Simulation -------------------------------------------------------------
+
+# Assign a unique sim_id for this run (last used sim_id + task_id)
 last_sim_id <- 0
 existing_log <- NULL
 if (file.exists(log_file)) {
   existing_log <- fread(log_file)
   last_sim_id <- max(as.numeric(existing_log$sim_id), 0, na.rm = TRUE)
 }
+sim_id <- last_sim_id + task_id
 
-# Block allocation: task_id gives offset within block
-sim_id <- sprintf("%04d", last_sim_id + task_id)
 
-cat("Block start =", last_sim_id, "→ sim_id =", sim_id, "task =", task_id, "\n")
-
-# Parameter table
-var_par_df <- tidyr::expand_grid(
+# Parameters can be changed in parameters.R.
+# For array jobs, it is helpful to define a grid of parameter combinations 
+# and then select the combination based on the task_id.
+var_par_df <- expand.grid(
   ac = 0.7,
   frag = c(0.2, 0.5, 0.8),
   hab = 0.15,
@@ -67,28 +68,21 @@ var_par_df <- tidyr::expand_grid(
   disp_dist = c(1, 5, 10),
   edge = 1
 )
+# Make sure that the number of combinations matches the number of tasks in the array job (or a multiple thereof)!
 
 # Determine which parameter combination to run based on task_id
 n_scenarios <- nrow(var_par_df)
 idx <- ((task_id - 1) %% n_scenarios) + 1
 var_par <- var_par_df[idx, ]
 
-# Compute scenario  key for logging
-scenario <- paste0("ac", var_par$ac, "_frag", var_par$frag, "_edge", var_par$edge, "_disp", var_par$disp_dist)
+cat(
+  "Running simulation ", sim_id, " with:\n   ",
+  paste(sprintf("%-10s = %s", names(var_par), unlist(var_par)),
+        collapse = "\n   "),
+  "\n\n", sep = ""
+)
 
-# True per-parameter replicate numbering
-replicate_num <- 1
-if (!is.null(existing_log)) {
-  reps <- existing_log[ac_amount == var_par$ac & fragmentation == var_par$frag & 
-                        habitat == var_par$hab & niche_breadth == var_par$nb & edge_effect == var_par$edge & 
-                        dispersal == var_par$disp & dispersal_dist == var_par$disp_dist]
-  if (nrow(reps) > 0) replicate_num <- max(reps$replicate_num) + 1
-}
-
-cat("sim_id =", sim_id, "| task =", task_id, "| scenario =", scenario, 
-    "| rep =", replicate_num, "| ac =", var_par$ac, "| frag =", var_par$frag, "\n")
-
-# Run simulation
+# Run the model and record states at specified steps
 # master seed == last 3 digits of job_id + task_id to ensure unique seeds across runs
 master_seed <- job_id %% 1000 + task_id
 results <- clean_run(
@@ -105,54 +99,70 @@ results <- clean_run(
   )
 )
 
-# Save model states
-filename <- paste0(sim_id, "_", scenario, "_r", sprintf("%03d", replicate_num))
-state_file <- file.path(state_dir, paste0(filename, ".rds"))
+# Extract metadata from the recorded states to use for filenaming and logging.
+# We can use the post_fragmentation step, since it is always recorded and contains all relevant metadata.
+meta <- results[["post_fragmentation"]]$meta
+
+scenario <- scenario_key(meta)
+replicate_num <- 1
+if (!is.null(existing_log)) {
+  scenario_reps <- existing_log[scenario_key == scenario]
+  if (nrow(scenario_reps) > 0) replicate_num <- max(scenario_reps$replicate_num) + 1
+}
+filename <- sim_filename(sim_id, scenario, replicate_num)
+
+# We can now save all recorded steps into a single RDS file
+state_file <- paste0(state_dir, "/", filename, ".rds")
 saveRDS(results, state_file)
+cat("\nSimulation completed.\n\nFull states were recorded for time steps [", paste(names(results), collapse = ", "), "] and saved to:\n   ", state_file, "\n", sep = "")
 
 
-# Sampling
+# Sampling ---------------------------------------------------------------
+
 recorded_steps <- names(results)
 sampled_files <- character()
 sampling_methods <- list(all = "all", cb = "checkerboard", rand = "random")
 
 for (method in names(sampling_methods)) {
+
   sampled <- list()
+
   for (step in recorded_steps) {
     sampled[[step]] <- sample_cells(results[[step]], 
                                     method = sampling_methods[[method]], 
                                     n_samples = 30, 
                                     format = "long")
   }
-  sampled_df <- rbindlist(sampled)
-  
-  samp_file <- file.path(sampled_dir, paste0(filename, "_samp_", method, ".csv")) 
 
-  fwrite(sampled_df, samp_file, na = "NA")
-  sampled_files <- c(sampled_files, samp_file)
+  sampled_long <- rbindlist(sampled)
+
+  # Here we are exporting to long format, since it is more flexible for spatial analyses.
+  # Yet, other analyses may require wide format. In that case, we could reformat the data before exporting.
+
+  # Export to CSV
+  sampled_file <- paste0(sampled_dir, "/", filename, "_", method, ".csv")
+  fwrite(sampled_long, sampled_file, na = "NA")
+  sampled_files <- c(sampled_files, sampled_file)
 }
 
-# Single atomic log write to avoid concurrency issues
-final_log <- data.table(
+cat("\nData was sampled for all time steps using methods [", paste(sampling_methods, collapse = ", "), "] and saved to:\n   ", paste(sampled_files, collapse = "\n   "), "\n", sep = "")
+
+
+# Logging ----------------------------------------------------------------
+
+
+# Finally, we can log the simulation details into the simulations log.
+# The helper function automatically writes the log entry to the specified log file.
+# Since every simulation has a unique sim_id, we shouldn't have concurrency issues.
+final_log <- log_entry(
   sim_id = sim_id, 
-  job_id = job_id, 
+  job_id = "local", 
   scenario_key = scenario, 
   replicate_num = replicate_num,
-  run_date = Sys.Date(), 
   project_version = "1.1",
   master_seed = master_seed, 
-  ac_amount = var_par$ac, 
-  fragmentation = var_par$frag, 
-  habitat = var_par$hab, 
-  niche_breadth = var_par$nb,
-  dispersal = var_par$disp, 
-  dispersal_dist = var_par$disp_dist, 
-  edge_effect = var_par$edge,
+  var_par = var_par,
   status = "complete",
-  state_file = path_rel(state_file, start = here()),
-  sampled_files = paste(sampled_files, collapse = "; ")
+  state_file = state_file,
+  sampled_files = sampled_files
 )
-
-fwrite(final_log, log_file, append = file.exists(log_file), logical01 = TRUE)
-
-cat("✓", sim_id, "\n\n")

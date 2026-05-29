@@ -5,6 +5,7 @@ library(data.table)
 library(raster)
 library(dplyr)
 library(tidyr)
+library(igraph)
 
 # Model source files
 source(here("Model/parameters.R"))
@@ -20,19 +21,19 @@ source(here("Model/src/death.R"))
 source(here("Model/src/disperse.R"))
 source(here("Model/src/immigration.R"))
 source(here("Model/src/fragmentation.R"))
+source(here("Model/src/registry.R"))
 
-# Sampling and analysis source files
+# Sampling source files
 source(here("R/toroidal_clump.R"))
 source(here("R/sample_cells.R"))
 
+# Paths
+log_file <- "output/simulations_log.csv"
+state_dir <- "output/model_states"
+sampled_dir <- "output/sampled_data"
+
 
 # Simulation -------------------------------------------------------------
-
-# Paths
-output_dir <- here("output")
-log_file <- here(output_dir, "simulations_log.csv")
-state_dir <- here(output_dir, "model_states")
-sampled_dir <- here(output_dir, "sampled_data")
 
 # Assign a unique sim_id for this run (last used sim_id + 1)
 last_sim_id <- 0
@@ -41,7 +42,7 @@ if (file.exists(log_file)) {
   existing_log <- fread(log_file)
   last_sim_id <- max(as.numeric(existing_log$sim_id), 0, na.rm = TRUE)
 }
-sim_id <- sprintf("%04d", last_sim_id + 1)
+sim_id <- last_sim_id + 1
 
 # Parameters can be changed in parameters.R.
 # If needed, we can change them here for testing purposes. For example:
@@ -56,9 +57,15 @@ var_par <- list(
   edge = 1
 )
 
-cat("Running simulation", sim_id, "with ac =", var_par$ac, "and frag =", var_par$frag, "\n")
+cat(
+  "Running simulation ", sim_id, " with:\n   ",
+  paste(sprintf("%-10s = %s", names(var_par), unlist(var_par)),
+        collapse = "\n   "),
+  "\n\n", sep = ""
+)
 
 # Run the model and record states at specified steps
+# No need to specify master_seed here, since it is already defined in parameters.R
 results <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
@@ -73,8 +80,12 @@ results <- clean_run(
   )
 )
 
+# Extract metadata from the recorded states to use for filenaming and logging.
+# We can use the post_fragmentation step, since it is always recorded and contains all relevant metadata.
+meta <- results[["post_fragmentation"]]$meta
+
 # Similarly to what we did with sim_id, we can also assign a replicate number for this scenario  
-scenario <- paste0("ac", var_par$ac, "_frag", var_par$frag, "_edge", var_par$edge, "_disp", var_par$disp_dist)
+scenario <- scenario_key(meta)
 replicate_num <- 1
 if (!is.null(existing_log)) {
   scenario_reps <- existing_log[scenario_key == scenario]
@@ -82,16 +93,10 @@ if (!is.null(existing_log)) {
 }
 
 # We can now save all recorded steps into a single RDS file
-filename <- paste0(
-  sim_id,
-  "_",
-  scenario,
-  "_r", sprintf("%03d", replicate_num)
-)
-
-state_file <- file.path(state_dir, paste0(filename, ".rds"))
+filename <- sim_filename(sim_id, scenario, replicate_num)
+state_file <- paste0(state_dir, "/", filename, ".rds")
 saveRDS(results, state_file)
-cat("✓ Simulation", sim_id, "completed and saved to:", "\n", state_file)
+cat("\nSimulation completed.\n\nFull states were recorded for time steps [", paste(names(results), collapse = ", "), "] and saved to:\n   ", state_file, "\n", sep = "")
 
 
 # Sampling ---------------------------------------------------------------
@@ -99,12 +104,11 @@ cat("✓ Simulation", sim_id, "completed and saved to:", "\n", state_file)
 # For sampling, we want to specify which steps we want to sample from and which sampling method(s) we want to use.
 # For example, here we sample from all recorded steps using random sampling only. 
 recorded_steps <- names(results)
-sampling_methods <- "random"
-sampled_dir <- here(output_dir, "sampled_data")
 sampled_files <- character()
+sampling_methods <- list(rand = "random")
 
 # For each sampling method we will create a CSV file with the sampled data from all recorded steps.
-for (method in sampling_methods) {
+for (method in names(sampling_methods)) {
 
   sampled <- list()
 
@@ -113,7 +117,7 @@ for (method in sampling_methods) {
   for (step in recorded_steps) {
     sampled[[step]] <- sample_cells(
       results[[step]],
-      method = method,
+      method = sampling_methods[[method]],
       n_samples = 30, # remember to specify if using random sampling
       format = "long"
     )
@@ -121,20 +125,17 @@ for (method in sampling_methods) {
 
   sampled_long <- rbindlist(sampled)
 
-  # Add replicate number to the sampled data.
-  sampled_long[, `:=`(replicate_num = replicate_num)]
-
   # Here we are exporting to long format, since it is more flexible for spatial analyses.
   # Yet, other analyses may require wide format. In that case, we could reformat the data before exporting.
 
   # Export to CSV
-  sampled_file <- file.path(sampled_dir, paste0(filename, "_samp_", method, ".csv"))
+  sampled_file <- paste0(sampled_dir, "/", filename, "_", method, ".csv")
   fwrite(sampled_long, sampled_file, na = "NA")
-  sampled_files <- c(sampled_files, path_rel(sampled_file, start = here()))
+  sampled_files <- c(sampled_files, sampled_file)
 
-  cat("✓ Sampled data for method", method, "saved to:","\n", sampled_file, "\n")
 }
 
+cat("\nData was sampled for all time steps using methods [", paste(sampling_methods, collapse = ", "), "] and saved to:\n   ", paste(sampled_files, collapse = "\n   "), "\n", sep = "")
 
 # Logging ----------------------------------------------------------------
 
@@ -142,24 +143,16 @@ for (method in sampling_methods) {
 # This is important for keeping track of what simulations we have run, the parameters used, 
 # and where the outputs are saved. 
 # It also helps to avoid overwriting existing simulations and to identify which replicates belong to which scenarios.
-final_log <- data.table(
+final_log <- log_entry(
   sim_id = sim_id, 
   job_id = "local", 
   scenario_key = scenario, 
   replicate_num = replicate_num,
-  run_date = Sys.Date(), 
   project_version = "1.1",
   master_seed = master_seed, 
-  ac_amount = var_par$ac, 
-  fragmentation = var_par$frag, 
-  habitat = var_par$hab, 
-  niche_breadth = var_par$nb,
-  dispersal = var_par$disp, 
-  dispersal_dist = var_par$disp_dist, 
-  edge = var_par$edge,
+  var_par = var_par,
   status = "complete",
-  state_file = path_rel(state_file, start = here()),
-  sampled_files = paste(sampled_files, collapse = "; ")
+  state_file = state_file,
+  sampled_files = sampled_files
 )
-fwrite(final_log, log_file, append = file.exists(log_file), logical01 = TRUE)
 

@@ -47,14 +47,7 @@ sampled_dir <- "output/sampled_data"
 # Simulation -------------------------------------------------------------
 
 # Assign a unique sim_id for this run (last used sim_id + task_id)
-last_sim_id <- 0
-existing_log <- NULL
-if (file.exists(log_file)) {
-  existing_log <- fread(log_file)
-  last_sim_id <- max(as.numeric(existing_log$sim_id), 0, na.rm = TRUE)
-}
-sim_id <- last_sim_id + task_id
-
+sim_id <- unique_sim_id(log_file, increment = task_id)
 
 # Parameters can be changed in parameters.R.
 # For array jobs, it is helpful to define a grid of parameter combinations 

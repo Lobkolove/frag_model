@@ -17,11 +17,10 @@ log_file <- "output/simulations_log.csv"
 # Get all files in the state directory
 state_files <- list.files(old_state_dir, full.names = TRUE)
 
-# We will iterate over each state file, assess the relevant parameters and rename 
+# We will iterate over each state file, assess the relevant parameters and rename
 # all respective files (state + sampled) to match the new naming convention.
 
 for (state_file in state_files) {
-
   # Extract old filename without extension
   old_filename <- file_path_sans_ext(basename(state_file))
 
@@ -34,12 +33,11 @@ for (state_file in state_files) {
   names(new_states) <- recorded_steps
 
   for (step_label in recorded_steps) {
-    
     single_state <- state_data[[step_label]]
 
     # Check if state has a meta object
     if (is.null(single_state$meta)) {
-      # Extract metadata 
+      # Extract metadata
       meta <- list(
         sim_id = single_state$sim_id,
         master_seed = single_state$master_seed,
@@ -48,7 +46,7 @@ for (state_file in state_files) {
         habitat = single_state$habitat,
         fragmentation = single_state$fragmentation,
         niche_breadth = 0.1,
-        edge_effect = 1, 
+        edge_effect = 1,
         dispersal = 1,
         dispersal_dist = 2
       )
@@ -72,23 +70,14 @@ for (state_file in state_files) {
   }
 
   # Assess the replicate number (based on parameters) from the log file if it exists, otherwise assign 1
-  if (file.exists(log_file)) {
-    log <- fread(log_file)
-    reps <- log[ac_amount == meta$ac_amount & fragmentation == meta$fragmentation & 
-                  habitat == meta$habitat & niche_breadth == meta$niche_breadth & edge_effect == meta$edge_effect & 
-                  dispersal == meta$dispersal & dispersal_dist == meta$dispersal_dist]
-    replicate_num <- if (nrow(reps) > 0) max(reps$replicate_num, na.rm = TRUE) + 1 else 1
-  } else {
-    replicate_num <- 1
-  }
+  replicate_num <- rep_number(meta)
 
   # Construct the new filename
-  scenario <- paste0("ac", meta$ac_amount, "_frag", meta$fragmentation, "_edge", meta$edge_effect, "_disp", meta$dispersal_dist)
-  new_filename <- paste0(
-    meta$sim_id,
-    "_",
-    scenario,
-    "_r", sprintf("%03d", replicate_num)
+  scenario <- scenario_key(meta)
+  new_filename <- sim_filename(
+    sim_id = meta$sim_id,
+    scenario_key = scenario,
+    replicate_num = replicate_num
   )
 
   # Save the new state file with the new name
@@ -98,53 +87,67 @@ for (state_file in state_files) {
   # Now we will also rename the sampled files for this simulation
   sampling_methods <- list(all = "all", cb = "chessboard", rand = "random")
   new_sampled_files <- character()
-      
+
   for (method in names(sampling_methods)) {
-    
-    old_sampled_file <- file.path(old_sampled_dir, paste0(old_filename, "_samp_", sampling_methods[[method]], ".csv"))
+    old_sampled_file <- file.path(
+      old_sampled_dir,
+      paste0(old_filename, "_samp_", sampling_methods[[method]], ".csv")
+    )
     table <- fread(old_sampled_file)
 
     # Add missing columns and reorder columns to match the new log format
-    table <- table %>% 
-      dplyr::mutate(habitat = meta$habitat, 
-                    niche_breadth = meta$niche_breadth,
-                    edge_effect = meta$edge_effect,
-                    dispersal = meta$dispersal,
-                    dispersal_dist = meta$dispersal_dist) %>% 
+    table <- table %>%
+      dplyr::mutate(
+        habitat = meta$habitat,
+        niche_breadth = meta$niche_breadth,
+        edge_effect = meta$edge_effect,
+        dispersal = meta$dispersal,
+        dispersal_dist = meta$dispersal_dist
+      ) %>%
       dplyr::select(
-        sim_id, master_seed, grid_size, fragmentation, ac_amount, 
-        habitat, niche_breadth, edge_effect, dispersal, dispersal_dist,
-        step, step_label, samp_method,
-        sample_id, cell_id, x_loc, y_loc, patch_id, patch_size,
-        species_id, n
+        sim_id,
+        master_seed,
+        grid_size,
+        fragmentation,
+        ac_amount,
+        habitat,
+        niche_breadth,
+        edge_effect,
+        dispersal,
+        dispersal_dist,
+        step,
+        step_label,
+        samp_method,
+        sample_id,
+        cell_id,
+        x_loc,
+        y_loc,
+        patch_id,
+        patch_size,
+        species_id,
+        n
       )
 
-    new_sampled_file <- file.path(new_sampled_dir, paste0(new_filename, "_samp_", method, ".csv"))
+    new_sampled_file <- file.path(
+      new_sampled_dir,
+      paste0(new_filename, "_samp_", method, ".csv")
+    )
     fwrite(table, new_sampled_file, na = "NA")
-    new_sampled_files <- c(new_sampled_files, path_rel(new_sampled_file, start = here()))
-    
+    new_sampled_files <- c(
+      new_sampled_files,
+      path_rel(new_sampled_file, start = here())
+    )
   }
 
   # Finally, we will also update the log file with the relevant information for this simulation
-  new_log_entry <- data.table(
-    sim_id = meta$sim_id,
-    job_id = "recovered", 
-    scenario_key = scenario, 
+  log_entry(
+    meta = meta,
+    job_id = "recovered",
+    scenario_key = scenario,
     replicate_num = replicate_num,
-    run_date = Sys.Date(), 
     project_version = "1.1",
-    master_seed = meta$master_seed, 
-    ac_amount = meta$ac_amount, 
-    fragmentation = meta$fragmentation, 
-    habitat = meta$habitat, 
-    niche_breadth = meta$niche_breadth,
-    dispersal = meta$dispersal, 
-    dispersal_dist = meta$dispersal_dist, 
-    edge_effect = meta$edge_effect,
     status = "complete",
-    state_file = path_rel(new_state_file, start = here()),
-    sampled_files = paste(new_sampled_files, collapse = "; ")
+    state_file = new_state_file,
+    sampled_files = new_sampled_files
   )
-  fwrite(new_log_entry, log_file, append = file.exists(log_file), logical01 = TRUE)
-
 }

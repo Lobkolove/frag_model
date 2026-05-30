@@ -66,6 +66,30 @@ rep_number <- function(
 
 }
 
+unique_sim_id <- function(
+  log_file, 
+  id_col = "sim_id",
+  increment = 1L,
+  as_string = FALSE, 
+  format = "%04d"
+) {
+
+  if (!is.integer(increment)) stop("Argument 'increment' must be an integer")
+  if (!file.exists(log_file)) {
+    sim_id <- increment
+  } else {
+    log <- fread(log_file)
+    last_sim_id <- max(as.numeric(log[[id_col]]))
+    sim_id <- last_sim_id + increment
+  }
+
+  if (as_string) {
+    return(sprintf(fmt = format, sim_id))
+  } else {
+    return(sim_id)
+  }
+}
+
 
 sim_filename <- function(sim_id, scenario_key, replicate_num) {
   if (is.numeric(sim_id)) {
@@ -90,7 +114,7 @@ log_entry <- function(
   sampled_files,
   log_file = "output/simulations_log.csv"
 ) {
-  
+
   sim_id <- ifelse(is.numeric(meta$sim_id), sprintf("%04d", meta$sim_id), meta$sim_id)
   entry <- data.table(
     sim_id = sim_id,

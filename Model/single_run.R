@@ -36,13 +36,7 @@ sampled_dir <- "output/sampled_data"
 # Simulation -------------------------------------------------------------
 
 # Assign a unique sim_id for this run (last used sim_id + 1)
-last_sim_id <- 0
-existing_log <- NULL
-if (file.exists(log_file)) {
-  existing_log <- fread(log_file)
-  last_sim_id <- max(as.numeric(existing_log$sim_id), 0, na.rm = TRUE)
-}
-sim_id <- last_sim_id + 1
+sim_id <- unique_sim_id(log_file)
 
 # Parameters can be changed in parameters.R.
 # If needed, we can change them here for testing purposes. For example:
@@ -85,12 +79,8 @@ results <- clean_run(
 meta <- results[["post_fragmentation"]]$meta
 
 # Similarly to what we did with sim_id, we can also assign a replicate number for this scenario  
-scenario <- scenario_key(meta)
-replicate_num <- 1
-if (!is.null(existing_log)) {
-  scenario_reps <- existing_log[scenario_key == scenario]
-  if (nrow(scenario_reps) > 0) replicate_num <- max(scenario_reps$replicate_num) + 1
-}
+scenario <- scenario_key(meta = meta)
+replicate_num <- rep_number(meta = meta)
 
 # We can now save all recorded steps into a single RDS file
 filename <- sim_filename(sim_id, scenario, replicate_num)
@@ -143,14 +133,12 @@ cat("\nData was sampled for all time steps using methods [", paste(sampling_meth
 # This is important for keeping track of what simulations we have run, the parameters used, 
 # and where the outputs are saved. 
 # It also helps to avoid overwriting existing simulations and to identify which replicates belong to which scenarios.
-final_log <- log_entry(
-  sim_id = sim_id, 
+log_entry(
+  meta = meta,
   job_id = "local", 
   scenario_key = scenario, 
   replicate_num = replicate_num,
   project_version = "1.1",
-  master_seed = master_seed, 
-  var_par = var_par,
   status = "complete",
   state_file = state_file,
   sampled_files = sampled_files

@@ -6,11 +6,17 @@ library(fs)
 library(tools)
 library(stringr)
 
+source("Model/src/registry.R")
+
 old_state_dir <- "output/old_states"
 old_sampled_dir <- "output/old_samples"
 
 new_state_dir <- "output/model_states"
 new_sampled_dir <- "output/sampled_data"
+
+# Create new directories if they don't exist
+dir_create(new_state_dir)
+dir_create(new_sampled_dir)
 
 log_file <- "output/simulations_log.csv"
 

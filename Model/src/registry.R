@@ -112,22 +112,44 @@ log_entry <- function(
   status,
   state_file,
   sampled_files,
+  overwrite = FALSE,
   log_file = "output/simulations_log.csv"
 ) {
 
   sim_id <- ifelse(is.numeric(meta$sim_id), sprintf("%04d", meta$sim_id), meta$sim_id)
+  if (file.exists(log_file)) {
+    log <- fread(log_file)
+    if (sim_id %in% log$sim_id) {
+      if (!overwrite) {
+        stop("Simulation", sim_id, "is already in the log. Skipping log entry.\n")
+      } else {
+        message("Simulation", sim_id, "is already in the log. Overwriting entry.\n")
+        log <- log[sim_id != log$sim_id]  # Remove existing entry for this sim_id
+      }
+    }
+  } else {
+    log <- data.table()  # Create an empty data.table if log file doesn't exist
+  }
+
+  # Check if meta contains run_date, if not assess from state file creation date
+  if (!"run_date" %in% names(meta)) {
+    run_date <- file.info(state_file)$ctime
+  } else {
+    run_date <- meta$run_date
+  }
+
   entry <- data.table(
     sim_id = sim_id,
     job_id = job_id, 
     scenario_key = scenario_key, 
     replicate_num = ifelse(is.numeric(replicate_num), sprintf("%03d", replicate_num), replicate_num),
-    run_date = Sys.Date(), 
+    run_date = run_date, 
     project_version = project_version,
     master_seed = meta$master_seed, 
     ac_amount = meta$ac_amount, 
     fragmentation = meta$fragmentation, 
     habitat = meta$habitat, 
-    niche_breadth = meta$niche_breadth, #I was here!
+    niche_breadth = meta$niche_breadth, #Simon was here!
     dispersal = meta$dispersal, 
     dispersal_dist = meta$dispersal_dist, 
     edge_effect = meta$edge_effect,
@@ -136,6 +158,12 @@ log_entry <- function(
     sampled_files = paste(path_rel(sampled_files, start = here()), collapse = "; ")
   )
 
-  fwrite(entry, log_file, append = file.exists(log_file), logical01 = TRUE)
-  cat("\nA log entry for simulation", sim_id, "was written to", log_file, "\n\n")
+  # Insert entry into log file, keeping sorted by sim_id
+  log <- rbind(log, entry)
+  log <- log[order(log$sim_id), ]
+
+  # Write updated log back to file
+  fwrite(log, log_file)
+  # fwrite(entry, log_file, append = file.exists(log_file))
+  cat("\nA new entry for simulation", sim_id, "was written to", log_file, "\n\n")
 }

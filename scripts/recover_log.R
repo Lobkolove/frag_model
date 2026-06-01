@@ -1,107 +1,97 @@
+# Reduced version of the filenaming script which only adds the missing information to the log file
 library(data.table)
 library(here)
-library(stringr)
 library(tools)
 
-state_dir <- "output/model_states"
+source("Model/src/registry.R")
+
+states_dir <- "output/model_states"
 sampled_dir <- "output/sampled_data"
-output_dir <- here("output")
-log_path <- file.path(output_dir, "simulations_log.csv")
+log_file <- "output/simulations_log.csv"
 
-parse_filename <- function(fname) {
-  base_name <- file_path_sans_ext(basename(fname))
-  pattern <- "^(\\d{4})_(ac[0-9.]+)_(frag[0-9.]+)_(hab[0-9.]+)_r(\\d{3})(?:_samp_.*)?$"
-  matches <- str_match(base_name, pattern)
-  if (is.na(matches[1])) return(NULL)
-  sim_id <- matches[2]
-  ac <- as.numeric(str_remove(matches[3], "ac"))
-  frag <- as.numeric(str_remove(matches[4], "frag"))
-  hab <- as.numeric(str_remove(matches[5], "hab"))
-  rep_num <- as.integer(str_remove(matches[6], "r"))
-  data.table(sim_id = sim_id, ac = ac, frag = frag, hab = hab, rep_num = rep_num)
-}
-
-# list files (full paths)
-state_files <- list.files(state_dir, "\\.rds$", full.names = TRUE)
-sampled_files <- list.files(sampled_dir, "\\.csv$", full.names = TRUE)
-
-safe_parse <- function(path) {
-  parsed <- parse_filename(path)
-  if (is.null(parsed)) return(NULL)
-  parsed[, file_path := path]
-  parsed
-}
-
-# build states table (keep full path in state_file)
-state_list <- Filter(Negate(is.null), lapply(state_files, safe_parse))
-state_dt <- if (length(state_list) > 0) {
-  rbindlist(state_list, fill = TRUE)[
-    , .(sim_id, ac, frag, hab, replicate_num = rep_num,
-        state_file = file_path,
-        run_date = as.Date(file.mtime(file_path)),
-        nb = 0.1, disp = 1, disp_dist = 2, edge = 1,
-        project_version = "frag_v1", job_id = "recovered",
-        status = "complete", seed = NA_integer_)
-  ]
-} else data.table()
-
-# build sampled table grouped by simulation (keep full paths)
-sampled_list <- Filter(Negate(is.null), lapply(sampled_files, safe_parse))
-sampled_dt <- if (length(sampled_list) > 0) rbindlist(sampled_list, fill = TRUE) else data.table()
-sampled_grouped <- if (nrow(sampled_dt) > 0) {
-  sampled_dt[, .(
-    sampled_files = paste(unique(file_path), collapse = "; "),
-    run_date = as.Date(max(file.mtime(file_path)))
-  ), by = .(sim_id, ac, frag, hab, replicate_num = rep_num)]
-} else data.table()
-
-# outer join state + sampled on canonical keys
-if (nrow(state_dt) == 0 && nrow(sampled_grouped) == 0) {
-  message("No recoverable files found")
+# Try to read the existing log file, if it exists
+if (file.exists(log_file)) {
+  log <- fread(log_file)
 } else {
-  merged <- merge(
-    state_dt, sampled_grouped,
-    by = c("sim_id", "ac", "frag", "hab", "replicate_num"),
-    all = TRUE, suffixes = c(".state", ".samp")
-  )
+  log <- data.table()
+}
 
-  # scenario_key, unified run_date, fill defaults where missing
-  merged[, scenario_key := paste0("ac", sprintf("%.1f", ac), "_frag", frag, "_hab", sprintf("%.2f", hab))]
-  merged[, run_date := as.Date(fifelse(!is.na(run_date.state), run_date.state, run_date.samp))]
-  merged[is.na(nb), nb := 0.1]
-  merged[is.na(disp), disp := 1]
-  merged[is.na(disp_dist), disp_dist := 2]
-  merged[is.na(edge), edge := 1]
+# Do we want to overwrite the log file with the new information, or just append the missing entries?
+overwrite <- TRUE
 
-  # infer task_id from sim_id suffix (last up to 3 digits) -- best-effort
-  merged[, task_id := as.integer(substr(sim_id, pmax(1, nchar(sim_id) - 2), nchar(sim_id)))]
+# Get all state files
+state_files <- list.files(states_dir, full.names = TRUE)
 
-  # build final log with exact column order used in extended_pipeline.R
-  log_entries <- merged[, .(
-    sim_id = sim_id,
-    task_id = task_id,
-    job_id = fifelse(!is.na(job_id), job_id, "recovered"),
-    scenario_key = scenario_key,
-    replicate_num = as.integer(replicate_num),
-    run_date = as.Date(run_date),
-    project_version = "frag_v1",
-    ac = ac,
-    frag = frag,
-    hab = hab,
-    nb = nb,
-    disp = disp,
-    disp_dist = disp_dist,
-    edge = edge,
-    seed = as.integer(NA),      # unknown unless in .rds
-    status = "complete",
-    state_file = fifelse(!is.na(state_file), state_file, NA_character_),
-    sampled_files = fifelse(!is.na(sampled_files), sampled_files, NA_character_)
-  )]
+# Loop through each state file and extract metadata to update the log
+for (state_file in state_files) {
 
-  # ensure sim_id is zero-padded character like pipeline
-  log_entries[, sim_id := as.character(sim_id)]
+  # Extract base filename without extension
+  base_filename <- file_path_sans_ext(basename(state_file))
 
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  fwrite(log_entries, log_path)
-  message("✅ Recovered ", nrow(log_entries), " simulations -> ", log_path)
+  # Check if the simulation is already in the log
+  # Extract sim_id from the filename (first 4 characters as integer)
+  sim_id <- as.integer(substr(base_filename, 1, 4))
+
+  # 
+  if (sim_id %in% log$sim_id) {
+    if (!overwrite) {
+      cat("Simulation", sim_id, "is already in the log. Skipping.\n")
+      next
+    } else {
+      cat("Simulation", sim_id, "is already in the log. Overwriting entry.\n")
+      log <- log[sim_id != log$sim_id]  # Remove existing entry for this sim_id
+    }
+  } else {
+    # Read the state file to extract parameters
+    state_data <- readRDS(state_file)
+    recorded_steps <- names(state_data)
+
+    # We use post_fragmentation step to extract the parameters, 
+    # since it is always recorded and contains all relevant metadata
+    single_state <- state_data[["post_fragmentation"]]
+    
+    # Currently, all saved states should have a meta object, but some old simulations didn't have it. 
+    # So just to be sure, we will check if it exists, and if not, we will build it from the state parameters.
+    if (is.null(single_state$meta)) {
+      # Extract metadata
+      meta <- list(
+        sim_id = single_state$sim_id,
+        master_seed = single_state$master_seed,
+        grid_size = single_state$grid_size,
+        ac_amount = single_state$ac_amount,
+        habitat = single_state$habitat,
+        fragmentation = single_state$fragmentation,
+        # All other relevant parameters were fixed in the old simulations, so we can just assign them here
+        niche_breadth = 0.1,
+        edge_effect = 1,
+        dispersal = 1,
+        dispersal_dist = 2
+      )
+    } else {
+      meta <- single_state$meta
+      # In some cases edge_effect was called edge
+      if (is.null(meta$edge_effect)) meta$edge_effect <- meta$edge
+    }
+
+    # We now assess if there are sampled files for this simulation (sharing the same base filename)
+    sampled_files <- list.files(
+      path = sampled_dir,
+      pattern = base_filename,
+      full.names = TRUE
+    )
+
+    # Add log entry for this simulation
+    log_entry(
+      meta = meta,
+      job_id = "recovered",
+      scenario_key = scenario_key(meta = meta),
+      replicate_num = rep_number(meta = meta),
+      project_version = "1.1",
+      status = "complete",
+      state_file = state_file,
+      sampled_files = paste(sampled_files, collapse = "; ")
+    )
+
+    
+  }
 }

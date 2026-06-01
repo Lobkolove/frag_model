@@ -2,7 +2,6 @@
 library(here)
 library(fs)
 library(data.table)
-# library(digest)
 library(raster)
 library(dplyr)
 library(tidyr)
@@ -24,10 +23,9 @@ source(here("Model/src/immigration.R"))
 source(here("Model/src/fragmentation.R"))
 source(here("Model/src/registry.R"))
 
-# Sampling and analysis source files
+# Sampling source files
 source(here("R/toroidal_clump.R"))
 source(here("R/sample_cells.R"))
-
 
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -96,12 +94,8 @@ results <- clean_run(
 # We can use the post_fragmentation step, since it is always recorded and contains all relevant metadata.
 meta <- results[["post_fragmentation"]]$meta
 
-scenario <- scenario_key(meta)
-replicate_num <- 1
-if (!is.null(existing_log)) {
-  scenario_reps <- existing_log[scenario_key == scenario]
-  if (nrow(scenario_reps) > 0) replicate_num <- max(scenario_reps$replicate_num) + 1
-}
+scenario <- scenario_key(meta = meta)
+replicate_num <- rep_number(meta = meta)
 filename <- sim_filename(sim_id, scenario, replicate_num)
 
 # We can now save all recorded steps into a single RDS file
@@ -121,10 +115,12 @@ for (method in names(sampling_methods)) {
   sampled <- list()
 
   for (step in recorded_steps) {
-    sampled[[step]] <- sample_cells(results[[step]], 
-                                    method = sampling_methods[[method]], 
-                                    n_samples = 30, 
-                                    format = "long")
+    sampled[[step]] <- sample_cells(
+      results[[step]],
+      method = sampling_methods[[method]],
+      n_samples = 30,
+      format = "long"
+    )
   }
 
   sampled_long <- rbindlist(sampled)
@@ -148,13 +144,11 @@ cat("\nData was sampled for all time steps using methods [", paste(sampling_meth
 # The helper function automatically writes the log entry to the specified log file.
 # Since every simulation has a unique sim_id, we shouldn't have concurrency issues.
 final_log <- log_entry(
-  sim_id = sim_id, 
+  meta = meta,
   job_id = "local", 
   scenario_key = scenario, 
   replicate_num = replicate_num,
   project_version = "1.1",
-  master_seed = master_seed, 
-  var_par = var_par,
   status = "complete",
   state_file = state_file,
   sampled_files = sampled_files

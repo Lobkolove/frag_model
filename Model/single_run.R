@@ -81,9 +81,9 @@ meta <- results[["post_fragmentation"]]$meta
 # Similarly to what we did with sim_id, we can also assign a replicate number for this scenario  
 scenario <- scenario_key(meta = meta)
 replicate_num <- rep_number(meta = meta)
+filename <- sim_filename(sim_id, scenario, replicate_num)
 
 # We can now save all recorded steps into a single RDS file
-filename <- sim_filename(sim_id, scenario, replicate_num)
 state_file <- paste0(state_dir, "/", filename, ".rds")
 saveRDS(results, state_file)
 cat("\nSimulation completed.\n\nFull states were recorded for time steps [", paste(names(results), collapse = ", "), "] and saved to:\n   ", state_file, "\n", sep = "")

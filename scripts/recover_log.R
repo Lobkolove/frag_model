@@ -65,7 +65,7 @@ for (state_file in state_files) {
     project_version = "1.1",
     status = "complete",
     state_file = state_file,
-    sampled_files = paste(sampled_files, collapse = "; "),
+    sampled_files = sampled_files,
     overwrite = TRUE # Should entries be overwritten if already present?
   )
 }

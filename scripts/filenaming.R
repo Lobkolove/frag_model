@@ -46,6 +46,7 @@ for (state_file in state_files) {
       # Extract metadata
       meta <- list(
         sim_id = single_state$sim_id,
+        run_date = as.Date(file.info(state_file)$ctime),
         master_seed = single_state$master_seed,
         grid_size = single_state$grid_size,
         ac_amount = single_state$ac_amount,
@@ -59,6 +60,15 @@ for (state_file in state_files) {
     } else {
       meta <- single_state$meta
       if (is.null(meta$edge_effect)) meta$edge_effect <- meta$edge
+      if (is.null(meta$run_date)) {
+        meta$run_date <- as.Date(file.info(state_file)$ctime)
+        desired <- c(
+          "sim_id", "run_date", "master_seed", "grid_size",
+          "ac_amount", "habitat", "fragmentation", "niche_breadth",
+          "edge_effect", "dispersal", "dispersal_dist"
+        )
+        meta <- meta[desired]
+      }
     }
 
     # Append reformatted state to the new object
@@ -154,6 +164,7 @@ for (state_file in state_files) {
     project_version = "1.1",
     status = "complete",
     state_file = new_state_file,
-    sampled_files = new_sampled_files
+    sampled_files = new_sampled_files,
+    overwrite = TRUE
   )
 }

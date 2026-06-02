@@ -38,16 +38,21 @@ scenario_key <- function(
 rep_number <- function(
   meta,
   parameters = c("ac_amount", "habitat", "fragmentation", "edge_effect", "dispersal_dist"),
-  log_file = "output/simulations_log.csv"
+  log_file = "output/simulations_log.csv",
+  log_dt = NULL
 ) {
 
-  if (!file.exists(log_file)) return(1L) 
+  if (is.null(log_dt)) {
+    if (!file.exists(log_file)) return(1L)
+    log <- data.table::fread(log_file, colClasses = list(integer = c("sim_id", "replicate_num")))
+  } else {
+    log <- data.table::copy(log_dt)
+  }
   
+  if (nrow(log) == 0L) return(1L)
   if (!all(parameters %in% names(meta))) {
     stop("One or more specified parameters are not present in the metadata.")
   }
-    
-  log <- data.table::fread(log_file, colClasses = list(integer = "replicate_num"))
   
   missing_cols <- setdiff(parameters, names(log))
   if (length(missing_cols) > 0) {
@@ -59,6 +64,8 @@ rep_number <- function(
   for (par in parameters) {
     mask <- mask & (log[[par]] == meta[[par]])
   }
+  current_id <- as.integer(meta$sim_id)
+  mask <- mask & (log[["sim_id"]] < current_id)
   matches <- log[mask, ]
 
   if (nrow(matches) == 0) return(1L)
@@ -115,16 +122,17 @@ log_entry <- function(
   overwrite = FALSE,
   log_file = "output/simulations_log.csv"
 ) {
+  current_id <- as.integer(meta$sim_id)
 
-  sim_id <- ifelse(is.numeric(meta$sim_id), sprintf("%04d", meta$sim_id), meta$sim_id)
   if (file.exists(log_file)) {
-    log <- fread(log_file)
-    if (sim_id %in% log$sim_id) {
+    log <- fread(log_file, colClasses = list(character = c("sim_id", "replicate_num")))    
+    if (current_id %in% as.integer(log$sim_id)) {
       if (!overwrite) {
-        stop("Simulation", sim_id, "is already in the log. Skipping log entry.\n")
+        warning("Simulation ", current_id, " is already in the log and overwriting is disabled.\nSkipping log entry.\n", call. = FALSE)
+        return()
       } else {
-        message("Simulation", sim_id, "is already in the log. Overwriting entry.\n")
-        log <- log[sim_id != log$sim_id]  # Remove existing entry for this sim_id
+        warning("Simulation ", current_id, " is already in the log. Overwriting entry.\n", call. = FALSE)
+        log <- log[as.integer(log$sim_id) != current_id]  # Remove existing entry for this sim_id
       }
     }
   } else {
@@ -133,16 +141,16 @@ log_entry <- function(
 
   # Check if meta contains run_date, if not assess from state file creation date
   if (!"run_date" %in% names(meta)) {
-    run_date <- file.info(state_file)$ctime
+    run_date <- as.Date(file.info(state_file)$ctime)
   } else {
     run_date <- meta$run_date
   }
 
   entry <- data.table(
-    sim_id = sim_id,
+    sim_id = sprintf("%04d", current_id),
     job_id = job_id, 
     scenario_key = scenario_key, 
-    replicate_num = ifelse(is.numeric(replicate_num), sprintf("%03d", replicate_num), replicate_num),
+    replicate_num = sprintf("%03d", as.integer(replicate_num)),
     run_date = run_date, 
     project_version = project_version,
     master_seed = meta$master_seed, 
@@ -154,16 +162,16 @@ log_entry <- function(
     dispersal_dist = meta$dispersal_dist, 
     edge_effect = meta$edge_effect,
     status = status,
-    state_file = path_rel(state_file, start = here()),
-    sampled_files = paste(path_rel(sampled_files, start = here()), collapse = "; ")
+    state_file = as.character(fs::path_rel(state_file, start = here::here())),
+    sampled_files = paste(fs::path_rel(sampled_files, start = here::here()), collapse = "; ")
   )
 
   # Insert entry into log file, keeping sorted by sim_id
   log <- rbind(log, entry)
-  log <- log[order(log$sim_id), ]
+  log <- log[order(as.integer(log$sim_id)), ]
 
   # Write updated log back to file
   fwrite(log, log_file)
   # fwrite(entry, log_file, append = file.exists(log_file))
-  cat("\nA new entry for simulation", sim_id, "was written to", log_file, "\n\n")
+  cat("\nA new entry for simulation", current_id, "was written to", log_file, "\n\n")
 }

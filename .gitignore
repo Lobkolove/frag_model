@@ -9,3 +9,4 @@ pics/
 data-raw/
 output/model_states/
 output/sampled_data/
+Model/logs/

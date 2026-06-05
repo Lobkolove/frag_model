@@ -77,7 +77,7 @@ fragment <- function(full_state,
   meta$habitat <- habitat
   
   record_state(
-    core_state = list(
+    model_state = record_step(
       grid = fragmented_grid,
       agents = agents,
       step = full_state$step

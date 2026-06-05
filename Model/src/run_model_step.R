@@ -41,7 +41,7 @@ run_model_step <- function(
     return(step_out)
   } else if ("full_state" %in% class(model_state)) {
     full_state <- record_state(
-      core_state = step_out,
+      model_state = step_out,
       meta = model_state$meta,
       step_label = NULL
     )

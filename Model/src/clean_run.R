@@ -31,8 +31,9 @@ clean_run <- function(
 
   # Initialize metadata for recording
   # (habitat and fragmentation will be updated after fragmentation event)
-  meta <- list(
+  meta <- build_meta(
     sim_id = sim_id,
+    run_date = Sys.Date(),
     master_seed = master_seed,
     grid_size = mod_par$grid_size,
     ac_amount = var_par$ac,
@@ -74,7 +75,7 @@ clean_run <- function(
   # Record before the first step
   if ("start" %in% record_steps) {
     state_list[["start"]] <- record_state(
-      core_state = model_start,
+      model_state = model_start,
       meta = meta,
       step_label = "start"
     )
@@ -108,7 +109,7 @@ clean_run <- function(
   }
 
   full_state <- record_state(
-    core_state = model_state,
+    model_state = model_state,
     meta = meta,
     step_label = "pre_fragmentation"
   )
@@ -170,7 +171,7 @@ clean_run <- function(
   # Record final state
   if ("final" %in% record_steps) {
     state_list[["final"]] <- record_state(
-      core_state = model_state,
+      model_state = model_state,
       meta = meta,
       step_label = "final"
     )

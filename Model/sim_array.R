@@ -56,8 +56,8 @@ var_par_df <- expand.grid(
   hab = 0.15,
   nb = 0.1,
   disp = 1,
-  disp_dist = c(1, 5, 10),
-  edge = 1
+  disp_dist = 2,
+  edge = c(0.5, 1, 2)
 )
 # Make sure that the number of combinations matches the number of tasks in the array job (or a multiple thereof)!
 
@@ -148,7 +148,7 @@ final_log <- log_entry(
   job_id = "local", 
   scenario_key = scenario, 
   replicate_num = replicate_num,
-  project_version = "1.1",
+  project_version = "1.2",
   status = "complete",
   state_file = state_file,
   sampled_files = sampled_files

@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 #SBATCH --job-name=frag_sim
-#SBATCH --mail-user=j.n.thiem@fu-berlin.de
+#SBATCH --mail-user=thiej93
 #SBATCH --mail-type=end
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

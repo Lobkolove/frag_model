@@ -33,7 +33,7 @@ if (length(args) < 2) {
   stop("Usage: Rscript sim_pipeline.R <task_id> <job_id>")
 }
 
-task_id <- as.numeric(args[1])
+task_id <- as.integer(args[1])
 job_id <- as.numeric(args[2])
 
 # Paths

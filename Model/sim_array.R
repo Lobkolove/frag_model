@@ -151,5 +151,6 @@ final_log <- log_entry(
   project_version = "1.2",
   status = "complete",
   state_file = state_file,
-  sampled_files = sampled_files
+  sampled_files = sampled_files,
+  log_file = log_file
 )

@@ -37,9 +37,9 @@ task_id <- as.integer(args[1])
 job_id <- as.numeric(args[2])
 
 # Paths
-log_file <- "output/simulations_log.csv"
-state_dir <- "output/model_states"
-sampled_dir <- "output/sampled_data"
+log_file <- here("output", "simulations_log.csv")
+state_dir <- here("output", "model_states")
+sampled_dir <- here("output", "sampled_data")
 
 
 # Simulation -------------------------------------------------------------
@@ -100,7 +100,7 @@ filename <- sim_filename(sim_id, scenario, replicate_num)
 
 # We can now save all recorded steps into a single RDS file
 state_file <- paste0(state_dir, "/", filename, ".rds")
-saveRDS(results, state_file)
+saveRDS(results, file = state_file)
 cat("\nSimulation completed.\n\nFull states were recorded for time steps [", paste(names(results), collapse = ", "), "] and saved to:\n   ", state_file, "\n", sep = "")
 
 

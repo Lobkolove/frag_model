@@ -145,7 +145,7 @@ cat("\nData was sampled for all time steps using methods [", paste(sampling_meth
 # Since every simulation has a unique sim_id, we shouldn't have concurrency issues.
 final_log <- log_entry(
   meta = meta,
-  job_id = "local", 
+  job_id = job_id, 
   scenario_key = scenario, 
   replicate_num = replicate_num,
   project_version = "1.2",

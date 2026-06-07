@@ -62,10 +62,10 @@ for (state_file in state_files) {
     job_id = "recovered",
     scenario_key = scenario_key(meta = meta),
     replicate_num = rep_number(meta = meta),
-    project_version = "1.1",
+    project_version = "1.2",
     status = "complete",
     state_file = state_file,
     sampled_files = sampled_files,
-    overwrite = TRUE # Should entries be overwritten if already present?
+    overwrite = FALSE # Should entries be overwritten if already present?
   )
 }

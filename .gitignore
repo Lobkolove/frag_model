@@ -2,7 +2,7 @@
 .Rhistory 
 .DS_Store
 Model/run_model.R
-doc_ju.html
+*.html
 frag_comparison.gif
 styles.css
 pics/

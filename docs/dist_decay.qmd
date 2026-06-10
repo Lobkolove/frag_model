@@ -1,0 +1,153 @@
+---
+title: "Distance Decay Analysis"
+author: "J. N. Thiem"
+date: today
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    respect-user-color-scheme: true
+    theme: 
+      light: flatly
+      dark: darkly
+    highlight-style: 
+      light: github-light
+      dark: github-dark
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Introduction
+In this analysis, I will explore applications of distance decay curves to different simulated datasets. Distance decay analyses are used to understand how similarity between communities changes with geographic distance. 
+The driving idea is that distance decay curves can be a compelling tool to discern between geometric and demographic effects of fragmentation. If we isolate the geometric component of fragmentation effects, that is if we sample data right after fragmentation, before any ecological processes have taken place on the fragmented landscape, the relationship between community similarity and geographic distance should be consistent, regardless of the spatial configuration of fragmentation.
+This should not be the case if we include demographic effects into the equation, when we sample our data after some time has passed since fragmentation, and ecological processes have had the chance to play out. In this case, we should expect to see a stronger distance decay of similarity in the more fragmented landscape, where spatial isolation of communities is more pronounced (?).
+
+All data used for this demonstration was generated using the same model version (1.1). 
+Following parameters were kept constant across all simulations:
+
+* Landscape size: 50 x 50 grid cells
+* Number of time steps: 100 
+    + 40 steps for the burn-in phase
+    + 60 steps after fragmentation
+* Initial number of species: 1000
+* Initial number of individuals: 10000
+* Dispersal kernel: negative exponential
+
+## Fragmentation as the only driver
+To test the method, I started by running a relative large number of simulations where all ecological parameters were kept constant, except for the spatial configuration of fragmentation. All simulations used in this example were performed with the following parameters:
+
+* Landscape autocorrelation: 0.7
+* Habitat amount (after fragmentation): 0.15
+* Edge effect: none
+* Mean dispersal distance: 2 (in units of grid cells)
+
+```{r}
+#| label: fig-1
+#| fig-cap: "Distance decay curves for different levels of fragmentation, sampled right after fragmentation (left) and at the end of the simulation (right). Shaded areas represent 95% confidence intervals across simulations."
+#| fig-width: 10
+library(here)
+library(data.table)
+library(tidyverse)
+source(here("R", "sim_select.R"))
+source(here("R", "dist_decay.R"))
+
+# All simulations with only fragmentation as variable parameter, checkerboard sampling design
+paths <- sim_select(sampled = "checkerboard", log_file = here("output", "simulations_log.csv"))
+data_list <- purrr::map(here(paths), fread)
+
+# Convert to wide format for distance decay analysis
+data_wide <- data_list %>%
+    map(
+        ~ .x %>%
+            tidyr::pivot_wider(
+            names_from = species_id,
+            values_from = n,
+            values_fill = 0,
+            names_prefix = "sp_",
+            names_sort = TRUE
+    )
+)
+
+# Run distance decay analysis for each simulation
+dd_results <- list(
+    post_frag = vector("list", length(data_wide)),
+    final = vector("list", length(data_wide))
+)
+for (i in seq_along(data_wide)) {
+    
+    sim_id <- data_wide[[i]]$sim_id[1]
+    
+    post_frag <- data_wide[[i]] %>%
+        dplyr::filter(step_label == "post_fragmentation")
+
+    final <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "final")
+
+    fragmentation <- final$fragmentation[1]
+
+    dd_results$post_frag[[i]] <- dist_decay(
+        post_frag,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::select(distance, similarity) %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = fragmentation, 
+            step_label = "post_fragmentation"
+        )
+
+    dd_results$final[[i]] <- dist_decay(
+        final,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::select(distance, similarity) %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = fragmentation, 
+            step_label = "final"
+        )
+}
+
+# Average distance decay curves across time step for each fragmentation level
+dd_summaries <- map(dd_results, ~ .x %>%
+    bind_rows() %>%
+    group_by(step_label, fragmentation, distance) %>%
+    summarise(
+        simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+        simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+        similarity = mean(similarity, na.rm = TRUE), .groups = "drop"
+        ) %>%
+    mutate(
+        fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), 
+        labels = c("Low", "Medium", "High"))
+        )
+    )
+
+dd_summary <- bind_rows(dd_summaries) %>% 
+    mutate(step_label = factor(
+            step_label, 
+            levels = c("post_fragmentation", "final"), 
+            labels = c("Post-fragmentation", "End of simulation")
+            ))
+
+# Plot distance decay curves
+pal <- c("midnightblue", "darkgoldenrod", "violetred4")
+ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+    geom_line(linewidth = 1, alpha = 0.8) +
+    geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
+    facet_wrap(~ step_label) +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)") +
+    theme_bw(base_size = 14) +
+    theme(legend.position = "bottom")
+```
+
+

@@ -33,50 +33,118 @@
 #' @importFrom magrittr %>%
 #' @export
 sim_select <- function(
+  vars = "fragmentation",
   ...,
   file_type = c("sampled", "state"),
   sampled = c("random", "checkerboard", "all"),
+  ignore = c(
+    "sim_id",
+    "job_id",
+    "scenario_key",
+    "run_date",
+    "project_version",
+    "master_seed",
+    "replicate_num"
+  ),
+  mode = c("biggest_sample", "user_defined"),
   log_file = "output/simulations_log.csv"
 ) {
 
+  # Validate arguments
   ftype <- match.arg(file_type)
   sampled <- match.arg(sampled)
+  mode <- match.arg(mode)
+  conds <- list(...)
 
-  if (!file.exists(log_file)) stop("Log not found.")
+  # Check that log file exists and read it in
+  if (!file.exists(log_file)) {
+    stop("Log not found.")
+  }
   log <- fread(log_file)
 
-  conds <- list(...)
-  unused <- setdiff(names(conds), names(log))
-  if (length(unused) > 0) stop("Unused conditions: ", paste(unused, collapse = ", "))
-
-  matches <- log
-  for (cond in names(conds)) {
-    matches <- matches[matches[[cond]] == conds[[cond]], ]
+  # Check that specified variables and conditions are valid columns in the log
+  unused <- setdiff(c(vars, ignore, names(conds)), names(log))
+  if (length(unused) > 0) {
+    stop(
+      "Unused variables: ",
+      paste(unused, collapse = ", "),
+      "\n To see valid variables, use sim_vars()."
+    )
   }
-  if (nrow(matches) == 0) stop("No matches found.")
+
+  ignore <- setdiff(ignore, c(vars, names(conds)))
+  matches <- log %>%
+    select(-all_of(ignore))
+
+  # First, filter matches by the user-specified conditions.
+  # If no conditions are specified, we will return all matches for now.
+  if (length(conds) > 0) {
+    for (cond in names(conds)) {
+      matches <- matches[matches[[cond]] == conds[[cond]], ]
+    }
+    if (nrow(matches) == 0) stop("No matches found.")
+  }
+
   
-  if (ftype == "state") return(matches$state_file)
+  # Now we want to filter matches so that the static variables are the same across all returned rows.
+  # Whenever we encounter multiple values for a static variable, we will either:
+  # mode == "biggest_sample": keep only the most common combination of all static variables;
+  # mode == "user_defined": ask the user to specify the wanted combination. Group sizes should still 
+  # be printed to help the user make an informed decision.
+  static <- matches %>%
+    select(-all_of(c(vars, names(conds))), -state_file, -sampled_files) %>%
+    names()
+  combs <- matches %>%
+    group_by(across(all_of(static))) %>%
+    summarise(n = n(), .groups = "drop")
+  if (mode == "biggest_sample") {
+    biggest <- combs %>%
+      filter(n == max(n)) %>%
+      select(-n)
+    matches <- matches %>%
+      inner_join(biggest, by = static)
+  } else if (mode == "user_defined") {
+    cat("Multiple combinations of static variables found:\n")
+    print(combs)
+    cat("\nPlease specify which combination to use by entering the row number:\n")
+    user_input <- as.numeric(readline())
+    if (is.na(user_input) || user_input < 1 || user_input > nrow(combs)) {
+      stop("Invalid row number.")
+    }
+    matches <- matches %>%
+      inner_join(select(combs[user_input,], -n), by = static)
+  }
+
+
+  # Finally, we can return the requested file paths. 
+  # If file_type == "state", we will return the state_file column. 
+  # If file_type == "sampled", we will return the sampled_file column, 
+  # but only the paths that match the specified sampling strategy.
+  if (ftype == "state") {
+    return(matches$state_file)
+  }
   if (ftype == "sampled") {
-    pattern <- switch(sampled,
+    pattern <- switch(
+      sampled,
       "all" = "_all",
       "random" = "_rand",
       "checkerboard" = "_cb"
     )
-    paths <- matches$sampled_file
-    selected <- paths %>% 
-      str_split("; ") %>% 
-      unlist() %>% 
+    paths <- matches$sampled_files
+    selected <- paths %>%
+      str_split("; ") %>%
+      unlist() %>%
       str_subset(pattern = pattern)
     return(selected)
   }
 }
 
 
-sim_conditions <- function(log_file = "output/simulations_log.csv") {
+sim_vars <- function(log_file = "output/simulations_log.csv") {
   if (!file.exists(log_file)) stop("Log not found.")
   log <- fread(log_file)
 
-  cat("Available conditions in log:\n")
+  cat("Available variables in log:\n")
   names <- setdiff(names(log), c("state_file", "sampled_files"))
   types <- sapply(log[, ..names], class)
   cat(paste0("- ", names, " (", types, ")\n"))

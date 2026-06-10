@@ -7,6 +7,7 @@ library(tools)
 library(stringr)
 
 source("Model/src/registry.R")
+source("Model/src/record_state.R")
 
 old_state_dir <- "output/old_states"
 old_sampled_dir <- "output/old_samples"
@@ -43,8 +44,8 @@ for (state_file in state_files) {
 
     # Check if state has a meta object
     if (is.null(single_state$meta)) {
-      # Extract metadata
-      meta <- list(
+      # Construct metadata
+      meta <- build_meta(
         sim_id = single_state$sim_id,
         run_date = as.Date(file.info(state_file)$ctime),
         master_seed = single_state$master_seed,
@@ -58,30 +59,15 @@ for (state_file in state_files) {
         dispersal_dist = 2
       )
     } else {
-      meta <- single_state$meta
-      if (is.null(meta$edge_effect)) meta$edge_effect <- meta$edge
-      if (is.null(meta$run_date)) {
-        meta$run_date <- as.Date(file.info(state_file)$ctime)
-        desired <- c(
-          "sim_id", "run_date", "master_seed", "grid_size",
-          "ac_amount", "habitat", "fragmentation", "niche_breadth",
-          "edge_effect", "dispersal", "dispersal_dist"
-        )
-        meta <- meta[desired]
-      }
+      # Extract and standardise metadata
+      meta <- build_meta(single_state$meta)
     }
 
     # Append reformatted state to the new object
-    new_states[[step_label]] <- structure(
-      list(
-        meta = meta,
-        step = single_state$step,
-        step_label = step_label,
-        grid = single_state$grid,
-        agents = single_state$agents,
-        ss_abund = single_state$ss_abund
-      ),
-      class = c("model_state", "full_state", "list")
+    new_states[[step_label]] <- record_state(
+      model_state = single_state,
+      meta = meta,
+      step_label = step_label
     )
   }
 
@@ -105,10 +91,21 @@ for (state_file in state_files) {
   new_sampled_files <- character()
 
   for (method in names(sampling_methods)) {
-    old_sampled_file <- file.path(
+
+    old_sampled_file <- list.files(
       old_sampled_dir,
-      paste0(old_filename, "_samp_", sampling_methods[[method]], ".csv")
+      pattern = paste0(old_filename, ".*", method, "\\.csv$"),
+      full.names = TRUE
     )
+    
+    if (length(old_sampled_file) == 0) {
+      old_sampled_file <- list.files(
+        old_sampled_dir,
+        pattern = paste0(old_filename, ".*", sampling_methods[[method]], "\\.csv$"),
+        full.names = TRUE
+      )
+    }
+
     table <- fread(old_sampled_file)
 
     # Add missing columns and reorder columns to match the new log format
@@ -146,7 +143,7 @@ for (state_file in state_files) {
 
     new_sampled_file <- file.path(
       new_sampled_dir,
-      paste0(new_filename, "_samp_", method, ".csv")
+      paste0(new_filename, "_", method, ".csv")
     )
     fwrite(table, new_sampled_file, na = "NA")
     new_sampled_files <- c(
@@ -168,3 +165,4 @@ for (state_file in state_files) {
     overwrite = TRUE
   )
 }
+  

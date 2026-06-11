@@ -1,6 +1,8 @@
 ---
 title: "Distance Decay Analysis"
 author: "J. N. Thiem"
+bibliography: fragmentation.bib
+csl: apa-eu.csl
 date: today
 format:
   html:
@@ -22,12 +24,13 @@ execute:
   message: false
 ---
 
-## Introduction
+## Introduction {#sec-intro}
 In this analysis, I will explore applications of distance decay curves to different simulated datasets. Distance decay analyses are used to understand how similarity between communities changes with geographic distance. 
 The driving idea is that distance decay curves can be a compelling tool to discern between geometric and demographic effects of fragmentation. If we isolate the geometric component of fragmentation effects, that is if we sample data right after fragmentation, before any ecological processes have taken place on the fragmented landscape, the relationship between community similarity and geographic distance should be consistent, regardless of the spatial configuration of fragmentation.
 This should not be the case if we include demographic effects into the equation, when we sample our data after some time has passed since fragmentation, and ecological processes have had the chance to play out. In this case, we should expect to see a stronger distance decay of similarity in the more fragmented landscape, where spatial isolation of communities is more pronounced (?).
 
-All data used for this demonstration was generated using the same model version (1.1). 
+All data used for this demonstration was generated using the same model version (1.1) and sampled using the checkerboard method.
+
 Following parameters were kept constant across all simulations:
 
 * Landscape size: 50 x 50 grid cells
@@ -38,8 +41,10 @@ Following parameters were kept constant across all simulations:
 * Initial number of individuals: 10000
 * Dispersal kernel: negative exponential
 
-## Fragmentation as the only driver
-To test the method, I started by running a relative large number of simulations where all ecological parameters were kept constant, except for the spatial configuration of fragmentation. All simulations used in this example were performed with the following parameters:
+## Fragmentation as the only driver {#sec-frag-only}
+To test the method, I started by running a relative large number of simulations where all ecological parameters were kept constant, except for the spatial configuration of fragmentation which was varied in 3 different levels: 0.2 (low), 0.5 (medium), 0.8 (high).
+
+All simulations for this section were performed with the following parameters:
 
 * Landscape autocorrelation: 0.7
 * Habitat amount (after fragmentation): 0.15
@@ -48,16 +53,18 @@ To test the method, I started by running a relative large number of simulations 
 
 ```{r}
 #| label: fig-1
-#| fig-cap: "Distance decay curves for different levels of fragmentation, sampled right after fragmentation (left) and at the end of the simulation (right). Shaded areas represent 95% confidence intervals across simulations."
+#| fig-cap: "Fragmentation effects on distance decay and species richness. A: Distance decay curves for different levels of fragmentation, sampled right after fragmentation (left) and at the end of the simulation (right). Shaded areas represent 95% confidence intervals across simulations. B: Species richness for different levels of fragmentation, sampled right after fragmentation (left column) and at the end of the simulation (right column). Richness was either averaged across all samples from each simulation (top row) or assessed across the whole landscape (bottom row)."
 #| fig-width: 10
+#| fig-height: 10
 library(here)
 library(data.table)
 library(tidyverse)
+library(patchwork)
 source(here("R", "sim_select.R"))
 source(here("R", "dist_decay.R"))
 
 # All simulations with only fragmentation as variable parameter, checkerboard sampling design
-paths <- sim_select(sampled = "checkerboard", log_file = here("output", "simulations_log.csv"))
+paths <- sim_select(sim_id <= 75, sampled = "checkerboard")
 data_list <- purrr::map(here(paths), fread)
 
 # Convert to wide format for distance decay analysis
@@ -123,31 +130,297 @@ dd_summaries <- map(dd_results, ~ .x %>%
         simi_low = quantile(similarity, 0.025, na.rm = TRUE),
         simi_high = quantile(similarity, 0.975, na.rm = TRUE),
         similarity = mean(similarity, na.rm = TRUE), .groups = "drop"
-        ) %>%
+    ) %>%
     mutate(
-        fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), 
-        labels = c("Low", "Medium", "High"))
+        fragmentation = factor(
+            fragmentation, 
+            levels = c(0.2, 0.5, 0.8),
+            labels = c("Low", "Medium", "High")
         )
     )
+)
 
 dd_summary <- bind_rows(dd_summaries) %>% 
-    mutate(step_label = factor(
+    mutate(
+        step_label = factor(
             step_label, 
             levels = c("post_fragmentation", "final"), 
             labels = c("Post-fragmentation", "End of simulation")
-            ))
+        )
+    )
+
+# Assess alpha and gamma div for each dataset
+SR_results <- list(
+    post_frag = vector("list", length(data_list)),
+    final = vector("list", length(data_list))
+)
+for (i in seq_along(data_list)) {
+
+    post_frag <- data_list[[i]] %>% 
+        dplyr::filter(step_label == "post_fragmentation")
+
+    pf_summary <- post_frag %>% 
+        dplyr::group_by(sim_id, fragmentation, sample_id) %>% 
+        dplyr::summarise(richness = n(), .groups = "drop")
+    
+    pf_alpha <- mean(pf_summary$richness, na.rm = TRUE)
+    pf_gamma <- length(unique(post_frag$species_id))
+    
+    SR_results$post_frag[[i]] <- list(summary = pf_summary,
+                                      alpha = pf_alpha,
+                                      gamma = pf_gamma)
+    
+    final <- data_list[[i]] %>% 
+        dplyr::filter(step_label == "final")
+    
+    fin_summary <- final %>% 
+        dplyr::group_by(sim_id, fragmentation, sample_id) %>% 
+        dplyr::summarise(richness = n(), .groups = "drop")
+
+    fin_alpha <- mean(fin_summary$richness, na.rm = TRUE)
+    fin_gamma <- length(unique(final$species_id))
+
+    sim_id <- first(final$sim_id)
+    fragmentation <- first(final$fragmentation)
+
+    SR_results$final[[i]] <- list(sim_id = sim_id,
+                                  fragmentation = fragmentation,
+                                  summary = fin_summary,
+                                  alpha = fin_alpha,
+                                  gamma = fin_gamma)
+
+}
+
+# Aggregate species richness data into tidy format for plotting
+# Alpha diversity (local scale) - per sample
+alpha_tidy <- bind_rows(
+    # Post-fragmentation
+    SR_results$post_frag %>%
+        map_df(
+        ~ .x$summary %>%
+            mutate(step_label = "post_fragmentation"),
+        .id = "dataset_idx"
+        ),
+    
+    # Final
+    SR_results$final %>%
+        map_df(
+        ~ .x$summary %>%
+            mutate(step_label = "final"),
+        .id = "dataset_idx"
+        )
+) %>%
+    mutate(scale = "Local (alpha)",
+           richness_value = richness) %>%
+    select(sim_id, fragmentation, step_label, scale, richness_value)
+
+# Gamma diversity (landscape scale) - per dataset
+gamma_tidy <- bind_rows(
+    # Post-fragmentation
+    SR_results$post_frag %>%
+        map_df(
+            ~ {
+                tibble(
+                    sim_id = .x$summary$sim_id[1],
+                    fragmentation = .x$summary$fragmentation[1],
+                    step_label = "post_fragmentation",
+                    scale = "Landscape (gamma)",
+                    richness_value = .x$gamma
+                )
+            }
+        ),
+  
+    # Final
+    SR_results$final %>%
+        map_df(
+            ~ {
+                tibble(
+                    sim_id = .x$sim_id,
+                    fragmentation = .x$summary$fragmentation[1],
+                    step_label = "final",
+                    scale = "Landscape (gamma)",
+                    richness_value = .x$gamma
+                )
+            }
+        )
+)
+
+# Combine alpha and gamma
+sr_combined <- bind_rows(alpha_tidy, gamma_tidy) %>%
+    mutate(
+        fragmentation = factor(
+            fragmentation, 
+            levels = c(0.2, 0.5, 0.8), 
+            labels = c("Low", "Medium", "High")
+        ),
+        step_label = factor(
+            step_label, 
+            levels = c("post_fragmentation", "final"), 
+            labels = c("Post-fragmentation", "End of simulation")
+        ),
+        scale = factor(scale, levels = c("Local (alpha)", "Landscape (gamma)")))
 
 # Plot distance decay curves
 pal <- c("midnightblue", "darkgoldenrod", "violetred4")
-ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+gg_dd <- ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
     geom_line(linewidth = 1, alpha = 0.8) +
     geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
     facet_wrap(~ step_label) +
     scale_color_manual(values = pal) +
     scale_fill_manual(values = pal) +
-    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)") +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)", tag = "A") +
     theme_bw(base_size = 14) +
-    theme(legend.position = "bottom")
+    theme(legend.position = "top")
+
+# Plot species richness with violin plots
+gg_sr <- ggplot(sr_combined, aes(x = fragmentation, y = richness_value, color = fragmentation, fill = fragmentation)) +
+    geom_violin(alpha = 0.5) +
+    geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
+    facet_grid(scale ~ step_label, scales = "free_y") +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    labs(x = "Fragmentation Level", y = "Species Richness", tag = "B") +
+    theme_bw(base_size = 14) +
+    theme(legend.position = "none", strip.text.x = element_blank())
+
+gg_dd / gg_sr
+
 ```
+
+As we can see, although distance decay was averaged for a total of 22 simulations per fragmentation level, the curves overlap almost perfectly when we isolate geometric effects only (right after fragmentation). In contrast, when looking at the net effects at the end of the simulation, we can see clear differences between the different levels of fragmentation. Higher fragmentation scenarios (i.e. many small habitat patches) show higher community similarity at low distances but a steeper decrease in similarity at increasing distance than low fragmentation scenarios (i.e. fewer yet bigger habitat patches). 
+
+The plot also shows the differences between fragmentation levels in terms of species richness. In this case, we can see that geometric effects of fragmentation are neutral at the local scale but positive at the landscape scale, while net effects are negative at the local scale and neutral at the landscape scale. This aligns with what was shown and discussed by Gelber et al. [@gelber_geometric_2025].
+
+## Additional drivers {#sec-add-drivers}
+
+So far so good, but what happens if we look at different scenarios where also other ecological parameters are changed? 
+
+As described before, the simulations I analysed so far only differ in fragmentation configuration while all ecological parameters were fixed across all simulations. This approach was useful to highlight the direct effects of fragmentation itself, but it has the downside that it only describes a very specific scenario, with relatively high landscape autocorrelation, a small amount of habitat left after fragmentation, no edge effects and short dispersal of species (see @sec-frag-only).
+
+In the following analyses, I will use simulations where one additional parameter at a time has been varied (alongside fragmentation). Alongside the 3 levels of fragmentation already used above (0.2, 0.5, 0.8), each parameter has been varied into 3 different levels as well (the exact levels used will be mentioned in the respective subsections). I will run the same type of analysis shown in the previous section, just using data sampled from different simulations.
+
+Note that so far I only run and sampled a single simulation for each of the following parameter combination, for a total of 9 simulations per additional driver. The following sections are solely for demonstration purposes. For a thorough analysis, many more replicates for each scenario will be needed.
+
+
+### Habitat amount {#sec-habitat}
+
+The amount of habitat preserved after the fragmentation process can affect quite strongly how different configurations shape diversity and composition of communities. Especially when dispersal is limited to short distances, as it is the case in my simulations, the negative net effects of higher fragmentation on alpha diversity (as in local species richness) as well as the steeper decline of similarity at increasing distances should be partly buffered if a larger amount of habitat is preserved.
+
+To investigate the effects of habitat amount on the relationship between fragmentation and diversity, 3 levels of habitat amount were simulated (0.1, 0.3, 0.5). 
+
+```{r}
+#| label: fig-2
+#| fig-cap: "Fragmentation effects on distance decay and species richness. A: Distance decay curves for different levels of fragmentation, sampled right after fragmentation (left) and at the end of the simulation (right). Shaded areas represent 95% confidence intervals across simulations. B: Species richness for different levels of fragmentation, sampled right after fragmentation (left column) and at the end of the simulation (right column). Richness was either averaged across all samples from each simulation (top row) or assessed across the whole landscape (bottom row)."
+#| fig-width: 10
+#| fig-height: 10
+
+# All simulations with habitat %in% c(0.1, 0.3, 0.5)
+paths <- sim_select(
+    habitat %in% c(0.1, 0.3, 0.5), 
+    sampled = "checkerboard"
+)
+data_list <- purrr::map(here(paths), fread)
+
+# Convert to wide format for distance decay analysis
+data_wide <- data_list %>%
+    map(
+        ~ .x %>%
+            tidyr::pivot_wider(
+            names_from = species_id,
+            values_from = n,
+            values_fill = 0,
+            names_prefix = "sp_",
+            names_sort = TRUE
+    )
+)
+
+# Run distance decay analysis for each simulation
+dd_results <- list(
+    post_frag = vector("list", length(data_wide)),
+    final = vector("list", length(data_wide))
+)
+for (i in seq_along(data_wide)) {
+    
+    sim_id <- data_wide[[i]]$sim_id[1]
+    
+    post_frag <- data_wide[[i]] %>%
+        dplyr::filter(step_label == "post_fragmentation")
+
+    final <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "final")
+
+    fragmentation <- first(final$fragmentation)
+    habitat <- first(final$habitat)
+
+    dd_results$post_frag[[i]] <- dist_decay(
+        post_frag,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::select(distance, similarity) %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = fragmentation,
+            habitat = habitat,
+            step_label = "post_fragmentation"
+        )
+
+    dd_results$final[[i]] <- dist_decay(
+        final,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::select(distance, similarity) %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = fragmentation, 
+            habitat = habitat,
+            step_label = "final"
+        )
+}
+
+# Average distance decay curves across time step for each fragmentation level
+dd_summaries <- map(dd_results, ~ .x %>%
+    bind_rows() %>%
+    group_by(step_label, fragmentation, habitat, distance) %>%
+    summarise(
+        simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+        simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+        similarity = mean(similarity, na.rm = TRUE), .groups = "drop"
+    ) %>%
+    mutate(
+        fragmentation = factor(
+            fragmentation, 
+            levels = c(0.2, 0.5, 0.8),
+            labels = c("Low", "Medium", "High")
+        ),
+        habitat = factor(habitat)
+    )
+)
+
+dd_summary <- bind_rows(dd_summaries) %>% 
+    mutate(
+        step_label = factor(
+            step_label, 
+            levels = c("post_fragmentation", "final"), 
+            labels = c("Post-fragmentation", "End of simulation")
+        )
+    )
+
+gg_dd <- ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+    geom_line(linewidth = 1, alpha = 0.8) +
+    geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
+    facet_grid(rows = vars(habitat), cols = vars(step_label)) +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)", tag = "A") +
+    theme_bw(base_size = 14) +
+    theme(legend.position = "top")
+```
+
+
+
+
+
 
 

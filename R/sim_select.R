@@ -33,8 +33,8 @@
 #' @importFrom magrittr %>%
 #' @export
 sim_select <- function(
-  vars = "fragmentation",
   ...,
+  vars = "fragmentation",
   file_type = c("sampled", "state"),
   sampled = c("random", "checkerboard", "all"),
   ignore = c(
@@ -47,14 +47,13 @@ sim_select <- function(
     "replicate_num"
   ),
   mode = c("biggest_sample", "user_defined"),
-  log_file = "output/simulations_log.csv"
+  log_file = here("output/simulations_log.csv")
 ) {
 
   # Validate arguments
   ftype <- match.arg(file_type)
   sampled <- match.arg(sampled)
   mode <- match.arg(mode)
-  conds <- list(...)
 
   # Check that log file exists and read it in
   if (!file.exists(log_file)) {
@@ -63,7 +62,7 @@ sim_select <- function(
   log <- fread(log_file)
 
   # Check that specified variables and conditions are valid columns in the log
-  unused <- setdiff(c(vars, ignore, names(conds)), names(log))
+  unused <- setdiff(c(vars, ignore), names(log))
   if (length(unused) > 0) {
     stop(
       "Unused variables: ",
@@ -72,19 +71,12 @@ sim_select <- function(
     )
   }
 
-  ignore <- setdiff(ignore, c(vars, names(conds)))
-  matches <- log %>%
-    select(-all_of(ignore))
-
   # First, filter matches by the user-specified conditions.
   # If no conditions are specified, we will return all matches for now.
-  if (length(conds) > 0) {
-    for (cond in names(conds)) {
-      matches <- matches[matches[[cond]] == conds[[cond]], ]
-    }
-    if (nrow(matches) == 0) stop("No matches found.")
-  }
-
+  matches <- log %>%
+    filter(...) %>% 
+    select(-all_of(ignore))
+  if (nrow(matches) == 0) stop("No matches found.")
   
   # Now we want to filter matches so that the static variables are the same across all returned rows.
   # Whenever we encounter multiple values for a static variable, we will either:
@@ -92,7 +84,7 @@ sim_select <- function(
   # mode == "user_defined": ask the user to specify the wanted combination. Group sizes should still 
   # be printed to help the user make an informed decision.
   static <- matches %>%
-    select(-all_of(c(vars, names(conds))), -state_file, -sampled_files) %>%
+    select(-all_of(vars), -state_file, -sampled_files) %>%
     names()
   combs <- matches %>%
     group_by(across(all_of(static))) %>%
@@ -148,4 +140,26 @@ sim_vars <- function(log_file = "output/simulations_log.csv") {
   names <- setdiff(names(log), c("state_file", "sampled_files"))
   types <- sapply(log[, ..names], class)
   cat(paste0("- ", names, " (", types, ")\n"))
+}
+
+sim_ids <- function(
+  ..., 
+  log_file = here("output/simulations_log.csv")
+) {
+
+  qs <- dplyr::enquos(...)
+  used_vars <- unique(unlist(lapply(qs, function(q) all.vars(rlang::quo_get_expr(q)))))
+  print(used_vars)
+  
+  # Check that log file exists and read it in
+  if (!file.exists(log_file)) {
+    stop("Log not found.")
+  }
+  log <- fread(log_file)
+
+  matches <- log %>% 
+    dplyr::filter(...)
+
+  return(matches$sim_id)
+
 }

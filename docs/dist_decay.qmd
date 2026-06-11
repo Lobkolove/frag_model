@@ -310,7 +310,7 @@ To investigate the effects of habitat amount on the relationship between fragmen
 
 ```{r}
 #| label: fig-2
-#| fig-cap: "Fragmentation effects on distance decay and species richness. A: Distance decay curves for different levels of fragmentation, sampled right after fragmentation (left) and at the end of the simulation (right). Shaded areas represent 95% confidence intervals across simulations. B: Species richness for different levels of fragmentation, sampled right after fragmentation (left column) and at the end of the simulation (right column). Richness was either averaged across all samples from each simulation (top row) or assessed across the whole landscape (bottom row)."
+#| fig-cap: "Fragmentation effects on distance decay of similarity for different habitat amounts. Distance decay curves have different colors for different levels of fragmentation, sampled right after fragmentation (left column) and at the end of the simulation (right column). The amount of habitat preserved after fragmentation is shown increasing from top to bottom. Shaded areas represent 95% confidence intervals of the distance decay curves." 
 #| fig-width: 10
 #| fig-height: 10
 
@@ -357,11 +357,18 @@ for (i in seq_along(data_wide)) {
         dist_type = "euclidean",
         distvec = seq(0, 25, length.out = 200)
     )$smooth %>%
-        dplyr::select(distance, similarity) %>%
         dplyr::mutate(
             sim_id = sim_id, 
-            fragmentation = fragmentation,
-            habitat = habitat,
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),
+            habitat = factor(
+                habitat,
+                levels = c(0.1, 0.3, 0.5),
+                labels = c("10% habitat", "30% habitat", "50% habitat")
+            ),
             step_label = "post_fragmentation"
         )
 
@@ -370,35 +377,23 @@ for (i in seq_along(data_wide)) {
         dist_type = "euclidean",
         distvec = seq(0, 25, length.out = 200)
     )$smooth %>%
-        dplyr::select(distance, similarity) %>%
         dplyr::mutate(
             sim_id = sim_id, 
-            fragmentation = fragmentation, 
-            habitat = habitat,
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),            
+            habitat = factor(
+                habitat,
+                levels = c(0.1, 0.3, 0.5),
+                labels = c("10% habitat", "30% habitat", "50% habitat")
+            ),
             step_label = "final"
         )
 }
 
-# Average distance decay curves across time step for each fragmentation level
-dd_summaries <- map(dd_results, ~ .x %>%
-    bind_rows() %>%
-    group_by(step_label, fragmentation, habitat, distance) %>%
-    summarise(
-        simi_low = quantile(similarity, 0.025, na.rm = TRUE),
-        simi_high = quantile(similarity, 0.975, na.rm = TRUE),
-        similarity = mean(similarity, na.rm = TRUE), .groups = "drop"
-    ) %>%
-    mutate(
-        fragmentation = factor(
-            fragmentation, 
-            levels = c(0.2, 0.5, 0.8),
-            labels = c("Low", "Medium", "High")
-        ),
-        habitat = factor(habitat)
-    )
-)
-
-dd_summary <- bind_rows(dd_summaries) %>% 
+dd_summary <- bind_rows(dd_results) %>% 
     mutate(
         step_label = factor(
             step_label, 
@@ -407,18 +402,226 @@ dd_summary <- bind_rows(dd_summaries) %>%
         )
     )
 
-gg_dd <- ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
     geom_line(linewidth = 1, alpha = 0.8) +
     geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
     facet_grid(rows = vars(habitat), cols = vars(step_label)) +
     scale_color_manual(values = pal) +
     scale_fill_manual(values = pal) +
-    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)", tag = "A") +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)") +
     theme_bw(base_size = 14) +
-    theme(legend.position = "top")
+    theme(legend.position = "bottom")
+```
+
+### Edge effects {#sec-edge}
+
+```{r}
+#| label: fig-3
+#| fig-cap: "Fragmentation effects on distance decay of similarity for different edge effects. Distance decay curves have different colors for different levels of fragmentation. Samples were taken right after fragmentation (left column) and at the end of the simulation (right column). Edge effects are either negative (top row), neutral (middle row) or positive (bottom row). Shaded areas represent 95% confidence intervals of the distance decay curves."
+#| fig-width: 10
+#| fig-height: 10
+
+paths <- sim_select(
+    sim_id > 84 & sim_id <= 93, 
+    sampled = "checkerboard"
+)
+
+data_list <- purrr::map(here(paths), fread)
+
+data_wide <- data_list %>%
+    map(
+        ~ .x %>%
+            tidyr::pivot_wider(
+            names_from = species_id,
+            values_from = n,
+            values_fill = 0,
+            names_prefix = "sp_",
+            names_sort = TRUE
+    )
+)
+
+dd_results <- list(
+    post_frag = vector("list", length(data_wide)),
+    final = vector("list", length(data_wide))
+)
+for (i in seq_along(data_wide)) {
+    
+    sim_id <- data_wide[[i]]$sim_id[1]
+    
+    post_frag <- data_wide[[i]] %>%
+        dplyr::filter(step_label == "post_fragmentation")
+
+    final <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "final")
+
+    fragmentation <- first(final$fragmentation)
+    edge_effect <- first(final$edge_effect)
+
+    dd_results$post_frag[[i]] <- dist_decay(
+        post_frag,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),
+            edge_effect = factor(
+                edge_effect,
+                levels = c(0.5, 1, 2),
+                labels = c("Negative", "None", "Positive")
+            ),
+            step_label = "post_fragmentation"
+        )
+
+    dd_results$final[[i]] <- dist_decay(
+        final,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),            
+            edge_effect = factor(
+                edge_effect,
+                levels = c(0.5, 1, 2),
+                labels = c("Negative", "None", "Positive")
+            ),
+            step_label = "final"
+        )
+}
+
+dd_summary <- bind_rows(dd_results) %>% 
+    mutate(
+        step_label = factor(
+            step_label, 
+            levels = c("post_fragmentation", "final"), 
+            labels = c("Post-fragmentation", "End of simulation")
+        )
+    )
+
+gg_edge <- ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+    geom_line(linewidth = 1, alpha = 0.8) +
+    geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
+    facet_grid(rows = vars(edge_effect), cols = vars(step_label)) +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)") +
+    theme_bw(base_size = 14) +
+    theme(legend.position = "bottom")
+
+gridExtra::grid.arrange(gg_edge, right = "Edge effects")
+
 ```
 
 
+### Dispersal distance {#sec-dispersal}
+
+The mean dispersal distance of species can also affect how fragmentation shapes diversity and composition of communities. Similarly to habitat amount, when dispersal is limited to short distances, the negative net effects of higher fragmentation on alpha diversity (as in local species richness) as well as the steeper decline of similarity at increasing distances should be more pronounced than when dispersal is less limited. To investigate the effects of dispersal distance on the relationship between fragmentation and diversity, 3 levels of mean dispersal distance were used for different scenarios (1, 5, 10 grid cells).
+
+```{r}
+#| label: fig-3
+#| fig-cap: "Fragmentation effects on distance decay of similarity for different mean dispersal distances. Distance decay curves have different colors for different levels of fragmentation. Samples were taken right after fragmentation (left column) and at the end of the simulation (right column). The mean dispersal distance of species is shown increasing from top to bottom. Shaded areas represent 95% confidence intervals of the distance decay curves."
+#| fig-width: 10
+#| fig-height: 10
+
+paths <- sim_select(
+    dispersal_dist %in% c(1, 5, 10), 
+    sampled = "checkerboard"
+)
+data_list <- purrr::map(here(paths), fread)
+
+data_wide <- data_list %>%
+    map(
+        ~ .x %>%
+            tidyr::pivot_wider(
+            names_from = species_id,
+            values_from = n,
+            values_fill = 0,
+            names_prefix = "sp_",
+            names_sort = TRUE
+    )
+)
+
+dd_results <- list(
+    post_frag = vector("list", length(data_wide)),
+    final = vector("list", length(data_wide))
+)
+for (i in seq_along(data_wide)) {
+    
+    sim_id <- data_wide[[i]]$sim_id[1]
+    
+    post_frag <- data_wide[[i]] %>%
+        dplyr::filter(step_label == "post_fragmentation")
+
+    final <- data_wide[[i]] %>%
+    dplyr::filter(step_label == "final")
+
+    fragmentation <- first(final$fragmentation)
+    dispersal_dist <- first(final$dispersal_dist)
+
+    dd_results$post_frag[[i]] <- dist_decay(
+        post_frag,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),
+            dispersal_dist = factor(dispersal_dist),
+            step_label = "post_fragmentation"
+        )
+
+    dd_results$final[[i]] <- dist_decay(
+        final,
+        dist_type = "euclidean",
+        distvec = seq(0, 25, length.out = 200)
+    )$smooth %>%
+        dplyr::mutate(
+            sim_id = sim_id, 
+            fragmentation = factor(
+                fragmentation, 
+                levels = c(0.2, 0.5, 0.8),
+                labels = c("Low", "Medium", "High")
+            ),            
+            dispersal_dist = factor(dispersal_dist),
+            step_label = "final"
+        )
+}
+
+dd_summary <- bind_rows(dd_results) %>% 
+    mutate(
+        step_label = factor(
+            step_label, 
+            levels = c("post_fragmentation", "final"), 
+            labels = c("Post-fragmentation", "End of simulation")
+        )
+    )
+
+gg_disp <- ggplot(dd_summary, aes(x = distance, y = similarity, color = fragmentation, fill = fragmentation)) +
+    geom_line(linewidth = 1, alpha = 0.8) +
+    geom_ribbon(aes(ymin = simi_low, ymax = simi_high), alpha = 0.2, color = NA) +
+    facet_grid(rows = vars(dispersal_dist), cols = vars(step_label)) +
+    scale_color_manual(values = pal) +
+    scale_fill_manual(values = pal) +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)") +
+    theme_bw(base_size = 14) +
+    theme(legend.position = "bottom") 
+    
+gridExtra::grid.arrange(gg_disp, right = "Mean dispersal distance")
+
+```
 
 
 

@@ -53,10 +53,10 @@ sim_id <- unique_sim_id(log_file, increment = task_id)
 var_par_df <- expand.grid(
   ac = 0.7,
   frag = c(0.2, 0.5, 0.8),
-  hab = c(0.1, 0.3, 0.5),
+  hab = 0.15,
   nb = 0.1,
   disp = 1,
-  disp_dist = 2,
+  disp_dist = c(1, 5, 10),
   edge = 1
 )
 # Make sure that the number of combinations matches the number of tasks in the array job (or a multiple thereof)!

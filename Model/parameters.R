@@ -24,7 +24,7 @@ switch <- data.frame(
   ############
   
   immigration = 1, # determine if individuals from outside the space can immigrate back in. 0 = no, 1 = yes
-  dispersal_type = 0, # choose type of dispersal. 1 = short/long dispersal, 0 = random habitat cell
+  dispersal_type = 1, # choose type of dispersal. 1 = short/long dispersal, 0 = random habitat cell
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
   print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed

@@ -55,7 +55,7 @@ sim_id <- unique_sim_id(log_file, increment = task_id)
 # For array jobs, it is helpful to define a grid of parameter combinations 
 # and then select the combination based on the task_id.
 var_par_df <- expand.grid(
-  ac = 0.5,
+  ac = 0.7,
   frag = c(0.2, 0.5, 0.8),
   hab = 0.15,
   nb = 0.1,

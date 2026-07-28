@@ -29,7 +29,7 @@ state_files <- list.files(old_state_dir, full.names = TRUE)
 
 for (state_file in state_files) {
   # Extract old filename without extension
-  old_filename <- file_path_sans_ext(basename(state_file))
+  old_filename <- tools::file_path_sans_ext(basename(state_file))
 
   # Read the state file to extract parameters
   state_data <- readRDS(state_file)

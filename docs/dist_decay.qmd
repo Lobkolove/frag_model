@@ -527,7 +527,8 @@ gridExtra::grid.arrange(gg_edge, right = "Edge effects")
 The mean dispersal distance of species can also affect how fragmentation shapes diversity and composition of communities. Similarly to habitat amount, when dispersal is limited to short distances, the negative net effects of higher fragmentation on alpha diversity (as in local species richness) as well as the steeper decline of similarity at increasing distances should be more pronounced than when dispersal is less limited. To investigate the effects of dispersal distance on the relationship between fragmentation and diversity, 3 levels of mean dispersal distance were used for different scenarios (1, 5, 10 grid cells).
 
 ```{r}
-#| label: fig-3
+#| label: fig-4
+#| eval: false
 #| fig-cap: "Fragmentation effects on distance decay of similarity for different mean dispersal distances. Distance decay curves have different colors for different levels of fragmentation. Samples were taken right after fragmentation (left column) and at the end of the simulation (right column). The mean dispersal distance of species is shown increasing from top to bottom. Shaded areas represent 95% confidence intervals of the distance decay curves."
 #| fig-width: 10
 #| fig-height: 10

@@ -15,7 +15,6 @@ switch <- data.frame(
   random_landscape = 1, # determine whether set.seed is used for landscape generation. 0 = random, 1 = non-random
   random_post_frag = 1, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
   random_community = 1, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
-  random_distribution = 1, # determine whether to distribute agents randomly across the landscape or according to their niche. 0 = random, 1 = niche-based
   sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
   
   ############
@@ -25,6 +24,7 @@ switch <- data.frame(
   ############
   
   immigration = 1, # determine if individuals from outside the space can immigrate back in. 0 = no, 1 = yes
+  dispersal_type = 0, # choose type of dispersal. 1 = short/long dispersal, 0 = random habitat cell
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
   print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed
@@ -40,9 +40,9 @@ mod_par <- data.frame(
   n_pop = 5000, # setting amount of individuals
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))
-  steps = 0, # Determine how many time steps in the dynamic model
-  steps_pre_frag = 40, # used in GeDo_run.R instead of 'steps'
-  steps_post_frag = 60, # used in GeDo_run.R instead of 'steps'
+  # steps = 0, # Determine how many time steps in the dynamic model
+  steps_pre_frag = 40, # number of steps before fragmentation event
+  steps_post_frag = 60, # number of steps after fragmentation event
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
   dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)
@@ -131,7 +131,7 @@ if (vp_switch$nb == 1) {
   NB_vector <- mod_par$niche_breadth
 }
 if (vp_switch$disp == 1) {
-  disp_vector <- disp_vector <- seq(0, 0.9, 0.1)
+  disp_vector <- seq(0, 0.9, 0.1)
 } else {
   disp_vector <- mod_par$dispersal
 }

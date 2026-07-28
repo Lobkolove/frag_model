@@ -10,8 +10,7 @@ scenario_key <- function(
     habitat = "hab",
     fragmentation = "frag",
     edge_effect = "edge",
-    dispersal_dist = "disp",
-    niche_breadth = "nb"
+    dispersal_dist = "disp"
   )
 
   # Check if the specified parameters are valid and present in the metadata
@@ -29,6 +28,10 @@ scenario_key <- function(
     paste0(par_key, par_value)
   })
 
+  if (meta$dispersal_type == "random") {
+    key_values[length(key_values)] <- "rand_disp"
+  } 
+
   # Combine the key-value pairs into a single string.
   scenario_key <- paste0(key_values, collapse = "_")
   return(scenario_key)
@@ -37,7 +40,7 @@ scenario_key <- function(
 
 rep_number <- function(
   meta,
-  parameters = c("ac_amount", "habitat", "fragmentation", "edge_effect", "dispersal_dist"),
+  parameters = c("ac_amount", "habitat", "fragmentation", "edge_effect", "dispersal_type", "dispersal_dist"),
   log_file = "output/simulations_log.csv",
   log_dt = NULL
 ) {
@@ -52,6 +55,10 @@ rep_number <- function(
   if (nrow(log) == 0L) return(1L)
   if (!all(parameters %in% names(meta))) {
     stop("One or more specified parameters are not present in the metadata.")
+  }
+
+  if (is.null(log$dispersal_type)) {
+    log$dispersal_type <- "short_long"
   }
   
   missing_cols <- setdiff(parameters, names(log))
@@ -158,8 +165,10 @@ log_entry <- function(
     fragmentation = meta$fragmentation, 
     habitat = meta$habitat, 
     niche_breadth = meta$niche_breadth, #Simon was here!
-    dispersal = meta$dispersal, 
-    dispersal_dist = meta$dispersal_dist, 
+    dispersal_type = meta$dispersal_type, 
+    dispersal_kernel = ifelse(meta$dispersal_type == "random", NA_character_, meta$dispersal_kernel),
+    dispersal_ratio = ifelse(meta$dispersal_type == "random", NA_real_, meta$dispersal_ratio),
+    dispersal_dist = ifelse(meta$dispersal_type == "random", NA_integer_, meta$dispersal_dist), 
     edge_effect = meta$edge_effect,
     status = status,
     state_file = as.character(fs::path_rel(state_file, start = here::here())),

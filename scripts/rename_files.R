@@ -55,6 +55,8 @@ for (state_file in state_files) {
         fragmentation = single_state$fragmentation,
         niche_breadth = 0.1,
         edge_effect = 1,
+        dispersal_type = "short_long",
+        dispersal_kernel = "exponential",
         dispersal = 1,
         dispersal_dist = 2
       )
@@ -114,7 +116,8 @@ for (state_file in state_files) {
         habitat = meta$habitat,
         niche_breadth = meta$niche_breadth,
         edge_effect = meta$edge_effect,
-        dispersal = meta$dispersal,
+        dispersal_type = meta$dispersal_type,
+        dispersal_ratio = meta$dispersal_ratio,
         dispersal_dist = meta$dispersal_dist
       ) %>%
       dplyr::select(
@@ -126,7 +129,8 @@ for (state_file in state_files) {
         habitat,
         niche_breadth,
         edge_effect,
-        dispersal,
+        dispersal_type,
+        dispersal_ratio,
         dispersal_dist,
         step,
         step_label,

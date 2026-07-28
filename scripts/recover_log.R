@@ -40,6 +40,8 @@ for (state_file in state_files) {
       # All other relevant parameters were fixed in the old simulations, so we can just assign them here
       niche_breadth = 0.1,
       edge_effect = 1,
+      dispersal_type = "short_long",
+      dispersal_kernel = "exponential",
       dispersal = 1,
       dispersal_dist = 2
     )
@@ -66,6 +68,6 @@ for (state_file in state_files) {
     status = "complete",
     state_file = state_file,
     sampled_files = sampled_files,
-    overwrite = FALSE # Should entries be overwritten if already present?
+    overwrite = TRUE # Should entries be overwritten if already present?
   )
 }

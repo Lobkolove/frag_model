@@ -125,19 +125,21 @@ sample_cells <- function(full_state,
   # Add static metadata columns 
   meta <- full_state$meta
   meta_df <- tibble::tibble(
-    sim_id         = meta$sim_id,
-    master_seed    = meta$master_seed,
-    grid_size      = meta$grid_size,
-    ac_amount      = meta$ac_amount,
-    habitat        = meta$habitat,
-    fragmentation  = meta$fragmentation,
-    niche_breadth  = meta$niche_breadth,
-    edge_effect    = meta$edge_effect,
-    dispersal      = meta$dispersal,
-    disp_dist      = meta$dispersal_dist,
-    step           = full_state$step,
-    step_label     = full_state$step_label,
-    samp_method    = method
+    sim_id           = meta$sim_id,
+    master_seed      = meta$master_seed,
+    grid_size        = meta$grid_size,
+    ac_amount        = meta$ac_amount,
+    habitat          = meta$habitat,
+    fragmentation    = meta$fragmentation,
+    niche_breadth    = meta$niche_breadth,
+    edge_effect      = meta$edge_effect,
+    dispersal_type   = meta$dispersal_type,
+    dispersal_kernel = meta$dispersal_kernel,
+    dispersal_ratio  = meta$dispersal_ratio,
+    disp_dist        = meta$dispersal_dist,
+    step             = full_state$step,
+    step_label       = full_state$step_label,
+    samp_method      = method
   )
 
   # Merge metadata with samples df (metadata first, then sample-specific columns)

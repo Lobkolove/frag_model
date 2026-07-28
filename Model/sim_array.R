@@ -6,6 +6,10 @@ library(raster)
 library(dplyr)
 library(tidyr)
 library(igraph)
+library(collapse)
+library(checkmate)
+library(withr)
+library(scales)
 
 # Model source files
 source(here("Model/parameters.R"))
@@ -91,9 +95,8 @@ results <- clean_run(
   )
 )
 
-# Extract metadata from the recorded states to use for filenaming and logging.
-# We can use the post_fragmentation step, since it is always recorded and contains all relevant metadata.
-meta <- results[["post_fragmentation"]]$meta
+# Extract metadata from the last recorded state, to use for filenaming and logging.
+meta <- results[[length(results)]]$meta
 
 scenario <- scenario_key(meta = meta)
 replicate_num <- rep_number(meta = meta)

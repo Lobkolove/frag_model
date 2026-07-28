@@ -41,7 +41,7 @@ death <- function(
     
     # Updating death rate if switch is on and agent is at edge
     if (edge_effects) {
-      if (is.null(edge_cells)) edge_cells <- 
+      if (is.null(edge_cells)) edge_cells <- raster::boundaries(grid, type = "inner", asNA = TRUE)
       if (!is.null(edge_cells) && !is.na(edge_cells[cur_loc[1], cur_loc[2]])) {
         death_rate <- death_rate * edge_factor
       }

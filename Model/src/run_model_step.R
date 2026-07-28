@@ -7,6 +7,11 @@ run_model_step <- function(
   switch
 ) {
 
+  # Check if model_state is a core_state or full_state object
+  if (!("core_state" %in% class(model_state)) && !("full_state" %in% class(model_state))) {
+    stop("model_state must be either a core_state or full_state object.")
+  }
+  
   grid <- model_state$grid
   agents <- model_state$agents
   cells <- model_state$cells

@@ -10,12 +10,12 @@ master_seed <- 112L
 
 # Switches
 switch <- data.frame(
-  animation_export = 0, # determine whether plots from each time-step are exported for later animation. 0 = no, 1 = yes (keep OFF when running on cluster!)
+  # animation_export = 0, # determine whether plots from each time-step are exported for later animation. 0 = no, 1 = yes (keep OFF when running on cluster!)
   random_init = 0, # determine whether set.seed is used for the spin up phase. 0 = random, 1 = deterministic
   random_landscape = 1, # determine whether set.seed is used for landscape generation. 0 = random, 1 = non-random
   random_post_frag = 1, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
   random_community = 1, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
-  sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
+  # sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
   
   ############
   # this switch is very problematic as it can override "var_par" in certain cases e.g with edge effects in "death" function.
@@ -28,7 +28,7 @@ switch <- data.frame(
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
   print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed
-  export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
+  # export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
 )
 
 # Static Parameters

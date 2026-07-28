@@ -9,6 +9,7 @@
 clean_run <- function(
   mod_par,
   var_par,
+  species_par,
   switch,
   sim_id,
   record_steps = c("start", "pre_fragmentation", "post_fragmentation", "final"),
@@ -17,17 +18,31 @@ clean_run <- function(
 
   force(sim_id)
 
-  # If seed is provided explicitly, use it. Otherwise, check if a master seed is set in the environment.
+  # If seed is provided explicitly, use it. Otherwise, check if a master seed was sourced.
   # If neither is provided, generate a random master seed and set it.
   if (!is.null(seed)) {
     set.seed(seed)
     master_seed <- seed
-  } else if (!is.null(Sys.getenv("master_seed", unset = NULL))) {
+  } else if (exists("master_seed", envir = .GlobalEnv)) {
     set.seed(master_seed)
   } else {
     master_seed <- round(runif(1, 0, 1e6))
     set.seed(master_seed)
   }
+  
+  # Check if species specific parameters are enabled
+  species_specific <- isFALSE(switch$species_specific_par == 0)
+  if (species_specific) {
+    message("Species-specific parameters are enabled. `var_par` values will be ignored for species-specific parameters.")
+  } else {
+    if (switch$dispersal_type == 0) {
+      message("Random dispersal is enabled. `var_par$disp` and `var_par$disp_dist` will be ignored.")
+    }
+  }
+
+  # Check which dispersal type is selected
+  dispersal_type <- ifelse(switch$dispersal_type == 0, "random", "short_long")
+  dispersal_kernel <- ifelse(switch$kernel_type == 0, "log-normal", "exponential")
 
   # Initialize metadata for recording
   # (habitat and fragmentation will be updated after fragmentation event)
@@ -41,9 +56,12 @@ clean_run <- function(
     fragmentation = NA_real_,
     niche_breadth = var_par$nb,
     edge_effect = var_par$edge,
-    dispersal = var_par$disp,
+    dispersal_type = dispersal_type,
+    dispersal_kernel = dispersal_kernel,
+    dispersal_ratio = var_par$disp,
     dispersal_dist = var_par$disp_dist
   )
+
 
   # Initialization ----------------------------------------------------------
 
@@ -59,14 +77,17 @@ clean_run <- function(
   # Initialize model with 100% habitat
   model_start <- initialize(
     grid_size = mod_par$grid_size,
+    ac_amount = var_par$ac,
     n_species = mod_par$n_species,
     n_pop = mod_par$n_pop,
-    ac_amount = var_par$ac,
-    niche_breadth = mod_par$niche_breadth,
+    species_par = species_par,
+    k_inter = mod_par$k_inter,
+    k_intra = mod_par$k_intra,
+    niche_breadth = var_par$nb,
+    species_specific = species_specific,
     master_seed = master_seed,
     seed_landscape = seed_landscape,
-    seed_distribution = seed_distribution,
-    random_distribution = isTRUE(switch$random_distribution == 0)
+    seed_distribution = seed_distribution
   )
 
   # Storage for recorded states
@@ -92,7 +113,9 @@ clean_run <- function(
       # Run a full model step and update state
       step_out <- run_model_step(
         model_state = model_state,
+        mod_par = mod_par,
         var_par = var_par,
+        species_par = species_par,
         switch = switch
       )
       model_state <- step_out
@@ -152,7 +175,9 @@ clean_run <- function(
       # Run a full model step and update agents list and grid
       step_out <- run_model_step(
         model_state = model_state,
+        mod_par = mod_par,
         var_par = var_par,
+        species_par = species_par,
         switch = switch
       )
       model_state <- step_out

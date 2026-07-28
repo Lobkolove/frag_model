@@ -6,6 +6,8 @@ library(raster)
 library(dplyr)
 library(tidyr)
 library(igraph)
+library(collapse)
+library(checkmate)
 
 # Model source files
 source(here("Model/parameters.R"))
@@ -63,6 +65,7 @@ cat(
 results <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
+  species_par = species_par,
   switch = switch,
   sim_id = sim_id,
   seed = master_seed,

@@ -79,6 +79,7 @@ master_seed <- job_id %% 1000 + task_id
 results <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
+  species_par = species_par,
   switch = switch,
   sim_id = sim_id,
   seed = master_seed,

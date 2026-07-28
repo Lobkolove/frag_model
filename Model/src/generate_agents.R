@@ -3,7 +3,12 @@
 # The function returns a data.frame object listing all agents, their species
 # ID number, and their environmental value which represents the optimal environmental niche.
 
-generate_agents <- function(n_species, pop, grid, seed = NULL) {
+generate_agents <- function(
+  n_species,
+  n_pop,
+  # grid,
+  seed = NULL
+) {
   # mean_grid <- mean(grid@data@values[!is.na(grid@data@values)])
   # sd_grid <- sd(grid@data@values[!is.na(grid@data@values)] + 0.05)
 
@@ -15,8 +20,8 @@ generate_agents <- function(n_species, pop, grid, seed = NULL) {
   # create data frame and populating it
   withr::with_seed(seed, {
     agents_df <- data.table(
-      ID = 1:pop,
-      species_id = sample(1:n_species, pop, replace = T),
+      ID = 1:n_pop,
+      species_id = sample(1:n_species, n_pop, replace = T),
       x_loc = 0,
       y_loc = 0
     )
@@ -24,6 +29,6 @@ generate_agents <- function(n_species, pop, grid, seed = NULL) {
 
   # for optimization purposes, trying to run th model with 'agents' as a matrix instead of df
   # agents_df1 <- as.matrix(agents_df)
-  
+
   return(agents_df)
 }

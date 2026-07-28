@@ -1,59 +1,73 @@
 ####################### Agent Distribution Function ############################
 
-# The function returns a raster layer where cells values are equal to the species ID number
-# indicating where agents are distributed in space.
+distribute_agent <- function(
+  agents,
+  grid,
+  species_par,
+  k_inter,
+  k_intra,
+  nb = NULL,
+  species_specific = FALSE,
+  ...
+) {
 
-distribute_agent <- function(gr_size, 
-                             agents, 
-                             space, 
-                             nb,
-                             seed = NULL,
-                             random_distribution = FALSE,
-                             ...) {
-
-  # extract the extent of the simulation space raster, convert to matrix
-  extent <- extent(space)
-  space_mx <- as.matrix(space)
-  grid_values <- getValues(space)
+  if (!species_specific && is.null(nb)) {
+    stop("When species specific parameters are disabled, `nb` is required.")
+  } else if (species_specific && !is.null(nb)) {
+    warning("Species specific parameters enabled: ignoring `nb`.")
+  }
+  
+  # extract the extent of the simulation grid raster, convert to matrix
+  extent <- extent(grid)
+  grid_values <- getValues(grid)
 
   samp <- function(x, ...) x[sample.int(length(x), ...)] # redefine sample to work in case of vector length 1
 
   # populate matrix if random location is a habitat and survival probability is higher than rand1
-  for (k in 1:length(agents$ID)) {
+  for (i in 1:nrow(agents)) {
 
-    # extract possible locations for the species 
-    #nb <- species_par$niche_breadth[species_par$species_id == agents$species_id[k]] #commented out since it overrides the nb value from initialize call
-    n_value <- species_par$n_value[species_par$species_id == agents$species_id[k]]
-    range <- c(n_value - nb, n_value + nb)
-    possible_cells <- which(grid_values > range[1] & grid_values < range[2])
+    cur_spec_id <- agents$species_id[i]
+    cur_spec_par <- species_par[species_par$species_id == cur_spec_id, ]
+    u <- cur_spec_par$n_value
 
-    # Added to allow for random distribution of agents across the landscape, regardless of their niche values. 
-    # This is useful for testing the effects of fragmentation without the confounding effect of niche-based distribution.
-    if (random_distribution) {
-      possible_cells <- which(!is.na(grid_values))
+    if (species_specific) {
+      nb <- cur_spec_par$niche_breadth
     }
 
+    range <- c(u - nb, u + nb)
+    possible_cells <- which(grid_values > range[1] & grid_values < range[2])
+
     if (length(possible_cells) >= 1) {
-      location <- samp(possible_cells, 1)
-      xyloc <- rowColFromCell(space, location) # get the coordinates of the new location
+      destination <- samp(possible_cells, 1)
+      xyloc <- rowColFromCell(grid, destination) # get the coordinates of the new location
 
       if (
         collapse::fnrow(
-          collapse::fsubset(agents, x_loc == xyloc[1] & # checking if the cell did not reach its inter specific cell capacity
-                    y_loc == xyloc[2])) < mod_par$k_inter &&
-        collapse::fnrow(
-          collapse::fsubset(agents, x_loc == xyloc[1] & # checking if the cell did not reach its intra specific cell capacity
-          y_loc == xyloc[2] &
-          species_id == agents$species_id[k])) < mod_par$k_intra
+          collapse::fsubset(
+            agents,
+            x_loc == xyloc[1] & # checking if the cell did not reach its inter specific cell capacity
+              y_loc == xyloc[2]
+          )
+        ) <
+          k_inter &&
+          collapse::fnrow(
+            collapse::fsubset(
+              agents,
+              x_loc == xyloc[1] & # checking if the cell did not reach its intra specific cell capacity
+                y_loc == xyloc[2] &
+                species_id == cur_spec_id
+            )
+          ) <
+            k_intra
       ) {
-        agents$x_loc[k] <- xyloc[1]
-        agents$y_loc[k] <- xyloc[2]
+        agents$x_loc[i] <- xyloc[1]
+        agents$y_loc[i] <- xyloc[2]
       }
     }
   }
-  
+
   # updating agents list
   agents <- agents[agents$x_loc != 0, ]
 
   return(agents)
-  }
+}

@@ -51,8 +51,8 @@ mod_par <- data.frame(
   k_inter = 50, # cell carrying capacity for all species
   k_intra = 50, # cell carrying capacity of same species individuals
   n_immigrants = 50, # number of immigrants per time-step. At the moment static, consider changing it
-  n_samples = 30, # How many samples to collect
-  pos_neg_edge = 1 # * with death rate, so EE < 1 is positive (reduce DR) and EE > 1 is negative
+  # n_samples = 30, # How many samples to collect (legacy)
+  pos_neg_edge = 1 # * with death rate, so EE < 1 is positive (reduce DR) and EE > 1 is negative (ONLY RELEVANT WHEN EDGE EFFECT SWITCH IS ON)
 )
 
 n_values <- seq(from = 0, to = 1, length.out = mod_par$n_species)

@@ -51,12 +51,12 @@ sim_id <- unique_sim_id(log_file, increment = task_id)
 # For array jobs, it is helpful to define a grid of parameter combinations 
 # and then select the combination based on the task_id.
 var_par_df <- expand.grid(
-  ac = 0.7,
+  ac = 0.5,
   frag = c(0.2, 0.5, 0.8),
   hab = 0.15,
   nb = 0.1,
   disp = 1,
-  disp_dist = c(1, 5, 10),
+  disp_dist = 2,
   edge = 1
 )
 # Make sure that the number of combinations matches the number of tasks in the array job (or a multiple thereof)!
@@ -149,7 +149,7 @@ final_log <- log_entry(
   job_id = job_id, 
   scenario_key = scenario, 
   replicate_num = replicate_num,
-  project_version = "1.2",
+  project_version = "2.0",
   status = "complete",
   state_file = state_file,
   sampled_files = sampled_files,

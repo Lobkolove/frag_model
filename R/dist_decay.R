@@ -67,15 +67,17 @@ dist_decay <- function(model_sample,
   out_pred <- data.frame(distance = distvec, 
                          similarity = NA)
   
-  # Fit model - GAM with monotonously increasing constraint
+  # Fit model
   gam1 <- mgcv::gam(similarity ~ s(distance), data = out_dat)
   
-  # Predictions - SCAM
+  # Predictions
   pred <- stats::predict(gam1, out_pred, se = T)
   
   out_pred$similarity <- pred$fit
   out_pred$simi_low   <- pred$fit - 2*pred$se.fit
   out_pred$simi_high  <- pred$fit + 2*pred$se.fit
+  # These confidence intervals ignore the dependence between the points,
+  # so they are likely inappropiate.
   
   out <- list(data   = out_dat,    # distance, similarity
               smooth = out_pred)    # distance, similarity, CI

@@ -1,13 +1,15 @@
 record_step <- function(
   grid,
   agents,
-  step
+  step,
+  cells = NULL
 ) {
   structure(
     list(
       grid = grid,
       agents = agents,
-      step = step
+      step = step,
+      cells = cells
     ),
     class = c("model_state", "core_state", "list")
   )
@@ -24,8 +26,8 @@ build_meta <- function(
 
   required <- c(
     "sim_id", "run_date", "master_seed", "grid_size",
-    "ac_amount", "habitat", "fragmentation", "niche_breadth",
-    "edge_effect", "dispersal", "dispersal_dist"
+    "ac_amount", "habitat", "fragmentation", "niche_breadth", "edge_effect", 
+    "dispersal_type", "dispersal_kernel", "dispersal_ratio", "dispersal_dist"
   )
 
   provided <- list(...)
@@ -39,6 +41,9 @@ build_meta <- function(
 
   if (is.null(out$run_date)) out$run_date <- Sys.Date()
   if (is.null(out$edge_effect) && !is.null(out$edge)) out$edge_effect <- out$edge
+  if (is.null(out$dispersal_type)) out$dispersal_type <- "short_long"
+  if (is.null(out$dispersal_kernel)) out$dispersal_kernel <- "exponential"
+  if (is.null(out$dispersal_ratio ) && !is.null(out$dispersal)) out$dispersal_ratio <- out$dispersal
 
   missing <- required[vapply(required, function(x) is.null(out[[x]]), logical(1))]
   if (length(missing) > 0L) stop("One or more required parameters are missing:\n", missing)
@@ -94,6 +99,7 @@ record_state <- function(
       step_label = step_label,
       grid = model_state$grid,
       agents = model_state$agents,
+      cells = model_state$cells,
       ss_abund = ss_abund
     ),
     class = c("model_state", "full_state", "list")

@@ -10,13 +10,12 @@ master_seed <- 112L
 
 # Switches
 switch <- data.frame(
-  animation_export = 0, # determine whether plots from each time-step are exported for later animation. 0 = no, 1 = yes (keep OFF when running on cluster!)
+  # animation_export = 0, # determine whether plots from each time-step are exported for later animation. 0 = no, 1 = yes (keep OFF when running on cluster!)
   random_init = 0, # determine whether set.seed is used for the spin up phase. 0 = random, 1 = deterministic
   random_landscape = 1, # determine whether set.seed is used for landscape generation. 0 = random, 1 = non-random
   random_post_frag = 1, # determine whether set.seed is used for fragmenting landscape. 0 = random, 1 = non-random
   random_community = 1, # determine whether to introduce randomness in species distribution. 0 = random, 1 = non-random
-  random_distribution = 1, # determine whether to distribute agents randomly across the landscape or according to their niche. 0 = random, 1 = niche-based
-  sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
+  # sample_all = 0, # number of samples according to sample parameter or sample all possible cells. 0 = parameter, 1 = all
   
   ############
   # this switch is very problematic as it can override "var_par" in certain cases e.g with edge effects in "death" function.
@@ -25,10 +24,11 @@ switch <- data.frame(
   ############
   
   immigration = 1, # determine if individuals from outside the space can immigrate back in. 0 = no, 1 = yes
+  dispersal_type = 1, # choose type of dispersal. 1 = short/long dispersal, 0 = random habitat cell
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
   print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed
-  export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
+  # export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
 )
 
 # Static Parameters
@@ -40,9 +40,9 @@ mod_par <- data.frame(
   n_pop = 5000, # setting amount of individuals
   n_species = 1000, # setting number of species
   niche_breadth = 0.1, # is used to determine the SD (nb) in exp((-(e-u)^2)/(2*nb^2))
-  steps = 0, # Determine how many time steps in the dynamic model
-  steps_pre_frag = 40, # used in GeDo_run.R instead of 'steps'
-  steps_post_frag = 60, # used in GeDo_run.R instead of 'steps'
+  # steps = 0, # Determine how many time steps in the dynamic model
+  steps_pre_frag = 40, # number of steps before fragmentation event
+  steps_post_frag = 60, # number of steps after fragmentation event
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
   dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)
@@ -51,8 +51,8 @@ mod_par <- data.frame(
   k_inter = 50, # cell carrying capacity for all species
   k_intra = 50, # cell carrying capacity of same species individuals
   n_immigrants = 50, # number of immigrants per time-step. At the moment static, consider changing it
-  n_samples = 30, # How many samples to collect
-  pos_neg_edge = 1 # * with death rate, so EE < 1 is positive (reduce DR) and EE > 1 is negative
+  # n_samples = 30, # How many samples to collect (legacy)
+  pos_neg_edge = 1 # * with death rate, so EE < 1 is positive (reduce DR) and EE > 1 is negative (ONLY RELEVANT WHEN EDGE EFFECT SWITCH IS ON)
 )
 
 n_values <- seq(from = 0, to = 1, length.out = mod_par$n_species)
@@ -131,7 +131,7 @@ if (vp_switch$nb == 1) {
   NB_vector <- mod_par$niche_breadth
 }
 if (vp_switch$disp == 1) {
-  disp_vector <- disp_vector <- seq(0, 0.9, 0.1)
+  disp_vector <- seq(0, 0.9, 0.1)
 } else {
   disp_vector <- mod_par$dispersal
 }

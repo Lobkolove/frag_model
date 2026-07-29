@@ -7,40 +7,51 @@
 
 initialize <- function(
   grid_size,
+  ac_amount,
   n_species,
   n_pop,
-  ac_amount,
-  niche_breadth,
+  species_par,
+  k_inter,
+  k_intra,
+  niche_breadth = NULL,
+  species_specific = FALSE,
   master_seed = NULL,
   seed_landscape = NULL,
-  seed_distribution = NULL,
-  random_distribution = FALSE
+  seed_distribution = NULL
 ) {
+
   grid <- fbm_fft(
     gr_size = grid_size,
     ac_amount = ac_amount,
     seed = seed_landscape
   )
 
+  cells <- list(
+    habitat = 1:grid_size^2,
+    edges = NULL
+  )
+
   agents_init <- generate_agents(
     n_species = n_species,
-    pop = n_pop,
-    grid = grid,
+    n_pop = n_pop,
     seed = seed_distribution
   )
 
   agents <- distribute_agent(
-    gr_size = grid_size,
     agents = agents_init,
-    space = grid,
+    grid = grid,
+    species_par = species_par,
+    k_inter = k_inter,
+    k_intra = k_intra,
     nb = niche_breadth,
-    random_distribution = random_distribution
+    species_specific = species_specific,
   )
 
   state_out <- record_step(
     grid = grid,
     agents = agents,
-    step = 0L
+    step = 0L,
+    cells = cells
   )
 
   return(state_out)

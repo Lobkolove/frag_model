@@ -33,32 +33,69 @@ disperse <- function(cur_loc, d_sd, d_mean) {
 # Wraps coordinates on a toroidal grid: moves that exit one side re-enter from
 # the opposite side. Keeps the original kernel logic but enforces modular
 # coordinates instead of rejecting off-grid moves.
-toroidal_disperse <- function(cur_loc,
-                              d_sd,
-                              d_mean,
-                              grid_size) {
+toroidal_disperse <- function(
+  cur_loc,
+  d_sd,
+  d_mean,
+  grid_size,
+  kernel = c("exponential", "log-normal")
+) {
+  start.time <- Sys.time()
+
+  kernel <- match.arg(kernel)
+
   dis_sd <- d_sd
   dis_mean <- d_mean
-  
-  if (switch$kernel_type == 0) {
+
+  if (kernel == "log-normal") {
     sigma <- sqrt(log(1 + (dis_sd * dis_sd) / (dis_mean * dis_mean)))
     mu <- log(dis_mean) - 0.5 * sigma * sigma
     distance <- rlnorm(1, mu, sigma)
-  } else if (switch$kernel_type == 1) {
+  } else if (kernel == "exponential") {
     distance <- rexp(1, 1 / dis_mean)
   } else {
     print("please check switches")
   }
-  
+
   direction <- runif(1, min = 0, max = 2 * pi)
-  
+
   raw_x <- cur_loc[1] + round(cos(direction) * distance)
   raw_y <- cur_loc[2] + round(sin(direction) * distance)
-  
+
   # wrap to 1..grid_size
   new_x <- ((raw_x - 1) %% grid_size) + 1
   new_y <- ((raw_y - 1) %% grid_size) + 1
-  
+
   new_loc <- c(new_x, new_y)
+
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+  # cat("Time taken: ", time.taken)
+
+  return(new_loc)
+}
+
+random_disperse <- function(
+  grid,
+  force_habitat = TRUE,
+  habitat_cells = NULL,
+  seed = NULL
+) {
+
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+
+  if (force_habitat) {
+    if (is.null(habitat_cells)) {
+      habitat_cells <- which(!is.na(raster::getValues(grid)))
+    }
+    destination <- sample(habitat_cells, 1)
+  } else {
+    possible_cells <- 1:(nrow(grid) * ncol(grid))
+    destination <- sample(possible_cells, 1)
+  }
+  new_loc <- raster::rowColFromCell(grid, destination)
+
   return(new_loc)
 }

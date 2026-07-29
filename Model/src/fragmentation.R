@@ -39,7 +39,7 @@ ls_mask <- function(grid,
   if (is_raster) {
     return(fragmented_grid)
   } else {
-    return(as.matrix(fragmented_grid))
+    return(raster::as.matrix(fragmented_grid))
   }
 }
 
@@ -59,6 +59,15 @@ fragment <- function(full_state,
                              habitat = habitat,
                              fragmentation = fragmentation,
                              seed = seed)
+  
+  # Assess which cells are habitat and edge cells (useful for faster processes later)
+  if (inherits(fragmented_grid, "RasterLayer")) {
+    habitat_cells <- raster::Which(!is.na(fragmented_grid), cells = TRUE)
+    edges <- boundaries(fragmented_grid, type = "inner", asNA = TRUE)
+  } else {
+    habitat_cells <- which(!is.na(fragmented_grid))
+    edges <- boundaries(raster::raster(fragmented_grid), type = "inner", asNA = TRUE)
+  }
   
   # Only keep agents which are on habitat cells 
   keep <- !is.na(fragmented_grid[cbind(agents$x_loc, agents$y_loc)])
@@ -80,7 +89,11 @@ fragment <- function(full_state,
     model_state = record_step(
       grid = fragmented_grid,
       agents = agents,
-      step = full_state$step
+      step = full_state$step,
+      cells = list(
+        habitat = habitat_cells,
+        edges = edges
+      )
     ),
     meta = meta,
     step_label = "post_fragmentation"

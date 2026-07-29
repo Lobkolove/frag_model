@@ -6,6 +6,10 @@ library(raster)
 library(dplyr)
 library(tidyr)
 library(igraph)
+library(collapse)
+library(checkmate)
+library(withr)
+library(scales)
 
 # Model source files
 source(here("Model/parameters.R"))
@@ -53,7 +57,7 @@ sim_id <- unique_sim_id(log_file, increment = task_id)
 var_par_df <- expand.grid(
   ac = 0.7,
   frag = c(0.2, 0.5, 0.8),
-  hab = c(0.1, 0.3, 0.5),
+  hab = 0.15,
   nb = 0.1,
   disp = 1,
   disp_dist = 2,
@@ -79,6 +83,7 @@ master_seed <- job_id %% 1000 + task_id
 results <- clean_run(
   mod_par = mod_par,
   var_par = var_par,
+  species_par = species_par,
   switch = switch,
   sim_id = sim_id,
   seed = master_seed,
@@ -90,9 +95,8 @@ results <- clean_run(
   )
 )
 
-# Extract metadata from the recorded states to use for filenaming and logging.
-# We can use the post_fragmentation step, since it is always recorded and contains all relevant metadata.
-meta <- results[["post_fragmentation"]]$meta
+# Extract metadata from the last recorded state, to use for filenaming and logging.
+meta <- results[[length(results)]]$meta
 
 scenario <- scenario_key(meta = meta)
 replicate_num <- rep_number(meta = meta)
@@ -148,7 +152,7 @@ final_log <- log_entry(
   job_id = job_id, 
   scenario_key = scenario, 
   replicate_num = replicate_num,
-  project_version = "1.2",
+  project_version = "2.0",
   status = "complete",
   state_file = state_file,
   sampled_files = sampled_files,

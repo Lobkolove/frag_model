@@ -6,7 +6,7 @@
 
 # choose a random seed constant for the simulation or set the seed manually
 # seed <- round(runif(1,1,9999))
-master_seed <- 112L
+master_seed <- 42L
 
 # Switches
 switch <- data.frame(
@@ -27,7 +27,7 @@ switch <- data.frame(
   dispersal_type = 1, # choose type of dispersal. 1 = short/long dispersal, 0 = random habitat cell
   kernel_type = 1, # choose type of dispersal kernel.  0 = log-normal distribution, 1 = Exponential Distribution
   edge_effect = 0, # 0 = no edge effects 1 = with edge effects
-  print_agents = 1, # for debugging. if switch = 1 a message with amount of agents in each step is printed
+  print_agents = 1 # for debugging. if switch = 1 a message with amount of agents in each step is printed
   # export_raster = 0 # 0 = don't export gri and grd files of samples locations, 1 = export
 )
 
@@ -35,7 +35,7 @@ switch <- data.frame(
 mod_par <- data.frame(
   grid_size = 50, # side length of a square grid
   habitat_percent = 0.15, # 0-1 proportion of habitat vs matrix
-  spatial_ac = 0.7, # autocorrelation of habitat 0 (rough) - 1 (smooth)
+  spatial_ac = 0.5, # autocorrelation of habitat 0 (rough) - 1 (smooth)
   frag_factor = 0.25, # level of fragmentation 0 (unified) - 1 (fragmented)
   n_pop = 5000, # setting amount of individuals
   n_species = 1000, # setting number of species
@@ -95,13 +95,15 @@ if (switch$species_specific_par == 2) {
 }
 
 # switches for var par to determine which parameters are constant and which aren't.
-# if switch is on (1) the sequence of values will be used. off (0) will mean a constant value
+# if switch is on (2) the sequence of values will be used;
+# if switch is on (1) 3 values will be used (low, medium, high);
+# off (0) will mean a fixed value (from mod_par) will be used for all runs.
 
 vp_switch <- data.frame(
-  frag = 0,
-  ac = 0,
+  frag = 1,
+  ac = 1,
   hab = 0,
-  nb = 0,
+  nb = 1,
   disp = 0,
   disp_dist = 0,
   edge = 0
@@ -110,38 +112,52 @@ vp_switch <- data.frame(
 # Only fragmentation, auto-correlation, and habitat percent are adjustable and will override the settings of 'par'.
 # To vary other parameters the 'multi_runs' function will have to be adjusted.
 
-if (vp_switch$frag == 1) {
+if (vp_switch$frag == 2) {
   frag_factor_vector <- seq(0.1, 0.9, 0.1)
+} else if (vp_switch$frag == 1) {
+  frag_factor_vector <- c(0.2, 0.5, 0.8)
 } else {
   frag_factor_vector <- mod_par$frag_factor
 }
-if (vp_switch$ac == 1) {
+if (vp_switch$ac == 2) {
   spatial_ac_vector <- seq(0.01, 0.91, 0.10)
+} else if (vp_switch$ac == 1) {
+  spatial_ac_vector <- c(0, 0.5, 1)
 } else {
   spatial_ac_vector <- mod_par$spatial_ac
 }
-if (vp_switch$hab == 1) {
+if (vp_switch$hab == 2) {
   habitat_percent_vector <- seq(0.05, 0.95, 0.1)
+} else if (vp_switch$hab == 1) {
+  habitat_percent_vector <- c(0.1, 0.3, 0.5)
 } else {
   habitat_percent_vector <- mod_par$habitat_percent
 }
-if (vp_switch$nb == 1) {
+if (vp_switch$nb == 2) {
   NB_vector <- seq(0.01, 0.3, 0.03)
+} else if (vp_switch$nb == 1) {
+  NB_vector <- c(0.1, 0.2, 0.3)
 } else {
   NB_vector <- mod_par$niche_breadth
 }
-if (vp_switch$disp == 1) {
+if (vp_switch$disp == 2) {
   disp_vector <- seq(0, 0.9, 0.1)
+} else if (vp_switch$disp == 1) {
+  disp_vector <- c(0, 0.5, 1)
 } else {
   disp_vector <- mod_par$dispersal
 }
-if (vp_switch$disp_dist == 1) {
+if (vp_switch$disp_dist == 2) {
   disp_dist_vector <- seq(1, 5.5, 0.5)
+} else if (vp_switch$disp_dist == 1) {
+  disp_dist_vector <- c(1, 4, 8)
 } else {
   disp_dist_vector <- mod_par$mean_disp
 }
-if (vp_switch$edge == 1) {
+if (vp_switch$edge == 2) {
   edge_effect_vector <- seq(0.6, 1.5, 0.1)
+} else if (vp_switch$edge == 1) {
+  edge_effect_vector <- c(0.5, 1, 2)
 } else {
   edge_effect_vector <- mod_par$pos_neg_edge
 }

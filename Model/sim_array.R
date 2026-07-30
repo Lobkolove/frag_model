@@ -78,7 +78,7 @@ to_log <- TRUE
 
 # Notes (any additional information to be printed to the console output)
 # (will be included in the logs/*.out files)
-notes <- "k_intra = 5"
+notes <- NULL
 
 
 # Simulation -------------------------------------------------------------
@@ -86,7 +86,7 @@ notes <- "k_intra = 5"
 # Define a unique identifier for this simulation run (sim_id)
 if (to_log) {
   # Last used sim_id is determined from the log file, and the next sim_id is assigned.
-  sim_id <- unique_sim_id(log_file)
+  sim_id <- unique_sim_id(log_file = log_file, increment = task_id)
 } else {
   # If not logging, we can just use the task_id as sim_id
   sim_id <- task_id

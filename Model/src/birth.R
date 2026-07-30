@@ -64,7 +64,7 @@ birth <- function(
       # checking dispersal type (random - nonrandom)
       if (d_type == "random") {
 
-        new_loc_hab <- random_disperse(grid, habitat_cells = habitat_cells)
+        new_loc_hab <- random_disperse(grid = grid, habitat_cells = habitat_cells, force_habitat = TRUE)
 
         # check if the new location is a habitat cell (skip if not)
         if (is.na(grid[new_loc_hab[1], new_loc_hab[2]])) {
@@ -197,3 +197,39 @@ birth <- function(
 
   return(agents)
 }
+
+check_recruit <- function(agents, grid, location, u, nb, species_id, k_inter, k_intra) {
+
+  # check if the new location is a habitat cell (skip if not)
+  if (is.na(grid[location[1], location[2]])) return(FALSE)
+  
+  # extract environmental value at the new location and 
+  # calculate survival pro. according to Gravel 2006
+  e <- grid[location[1], location[2]]
+  survival_prob <- exp((-(e - u)^2) / (2 * nb^2))
+
+  # check survival probability (skip if didn't survive)
+  if (survival_prob <= runif(1)) return(FALSE)
+
+  # check if the cell has reached its carrying capacity
+  inter_cell_subset <- collapse::fsubset(
+    agents,
+    x_loc == location[1] & y_loc == location[2]
+  )
+  inter_cell <- collapse::fnrow(inter_cell_subset)
+  intra_cell <- collapse::fnrow(collapse::fsubset(
+    inter_cell_subset,
+    species_id == species_id
+  ))
+
+  if (
+      inter_cell < k_inter && # checking if the cell did not reach its inter-specific carrying capacity
+      intra_cell < k_intra # checking if the cell did not reach its intra-specific carrying capacity
+  ) {
+      return(TRUE)
+  } else {
+    return(FALSE)
+  }
+
+}
+

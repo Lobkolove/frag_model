@@ -16,6 +16,7 @@ scenario_key <- function(
     habitat = "hab",
     fragmentation = "frag",
     edge_effect = "edge",
+    niche_breadth = "nb",
     dispersal_dist = "disp"
   )
 

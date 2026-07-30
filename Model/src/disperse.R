@@ -76,8 +76,10 @@ toroidal_disperse <- function(
 }
 
 random_disperse <- function(
-  grid,
-  force_habitat = TRUE,
+  nrow = 50,
+  ncol = nrow,
+  grid = NULL,
+  force_habitat = FALSE,
   habitat_cells = NULL,
   seed = NULL
 ) {
@@ -86,16 +88,24 @@ random_disperse <- function(
     set.seed(seed)
   }
 
+  if (force_habitat && is.null(grid) && is.null(habitat_cells)) {
+    stop("Either a grid or habitat_cells must be provided when force_habitat is TRUE.")
+  }
+
+  if (!is.null(grid)) {
+    nrow <- nrow(grid)
+    ncol <- ncol(grid)
+  }
+
   if (force_habitat) {
     if (is.null(habitat_cells)) {
       habitat_cells <- which(!is.na(raster::getValues(grid)))
     }
     destination <- sample(habitat_cells, 1)
+    new_loc <- c(ceiling(destination / ncol), (destination - 1) %% ncol + 1)
   } else {
-    possible_cells <- 1:(nrow(grid) * ncol(grid))
-    destination <- sample(possible_cells, 1)
+    new_loc <- c(sample(nrow, 1), sample(ncol, 1))
   }
-  new_loc <- raster::rowColFromCell(grid, destination)
 
   return(new_loc)
 }

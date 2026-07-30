@@ -38,7 +38,7 @@ state_dir <- "output/model_states"
 sampled_dir <- "output/sampled_data"
 
 # Notes (any additional information to be printed to the console output)
-notes <- "k_intra = 5"
+notes <- NULL
 
 
 # Settings ---------------------------------------------------------------

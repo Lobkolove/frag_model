@@ -2,9 +2,15 @@
 
 scenario_key <- function(
   meta,
-  parameters = c("ac_amount", "habitat", "fragmentation", "edge_effect", "dispersal_dist")
+  parameters = c(
+    "ac_amount",
+    "habitat",
+    "fragmentation",
+    "edge_effect",
+    "niche_breadth",
+    "dispersal_dist"
+  )
 ) {
-
   par_keys <- list(
     ac_amount = "ac",
     habitat = "hab",
@@ -18,7 +24,10 @@ scenario_key <- function(
     stop("One or more specified parameters are not present in the metadata.")
   }
   if (!all(parameters %in% names(par_keys))) {
-    stop("One or more specified parameters do not have corresponding keys defined.\n\nParameters currently supported for the scenario key:\n", paste(names(par_keys), collapse = ", "))
+    stop(
+      "One or more specified parameters do not have corresponding keys defined.\n\nParameters currently supported for the scenario key:\n",
+      paste(names(par_keys), collapse = ", ")
+    )
   }
 
   # For the chosen parameters, extract their values from the metadata and create a key-value pair string.
@@ -29,18 +38,25 @@ scenario_key <- function(
   })
 
   if (meta$dispersal_type == "random") {
-    key_values[length(key_values)] <- "rand_disp"
-  } 
+    key_values[length(key_values)] <- "dispR"
+  }
 
   # Combine the key-value pairs into a single string.
   scenario_key <- paste0(key_values, collapse = "_")
   return(scenario_key)
-
 }
 
 rep_number <- function(
   meta,
-  parameters = c("ac_amount", "habitat", "fragmentation", "edge_effect", "dispersal_type", "dispersal_dist"),
+  parameters = c(
+    "ac_amount", 
+    "habitat", 
+    "fragmentation", 
+    "edge_effect", 
+    "niche_breadth", 
+    "dispersal_type", 
+    "dispersal_dist"
+  ),
   log_file = "output/simulations_log.csv",
   log_dt = NULL
 ) {

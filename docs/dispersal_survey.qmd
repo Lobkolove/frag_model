@@ -1,0 +1,42 @@
+---
+title: "Dispersal exploration"
+subtitle: "Population fluctuations under different dispersal scenarios"
+author: "J. N. Thiem"
+bibliography: fragmentation.bib
+csl: apa-eu.csl
+date: today
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    respect-user-color-scheme: true
+    theme: 
+      light: flatly
+      dark: darkly
+    highlight-style: 
+      light: github-light
+      dark: github-dark
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Background
+
+The simulations used for Gelber et al. [@gelber_geometric_2025] all used an exponential dispersal kernel, meaning that the probability of dispersal decreases exponentially with distance. This is a common assumption in population ecology and should be a fair representation of dispersal for sessile organisms. Mean dispersal distance was varied between different simulations, to see how it might affect geometric and demographic effects of fragmentation. At the same time, the study also tried to determine how different edge effects (from strongly negative to strongly positive) interact with dispersal distance to modulate the effects of fragmentation on species richness. Although this novel approach has already yielded some interesting results, some aspects might still need to be addressed.
+
+### Positive demographic effects of fragmentation
+
+An issue connected with the current approach is that by design, higher fragmentation landscapes have much higher dispersal mortality. Since the direction of dispersal is random, the probability of newly born individuals dispersing outside of the habitat is much higher in fragmented landscapes. This means that even if edge effects are strongly positive, they are outweighed by the negative effects of dispersal mortality, leading to strong negative demographic effects. 
+
+For better understanding the spatial components of fragmentation effects, we are also interested in modelling positive demographic effects. In order to do so, we had the idea to implement a dispersal mode which forces dispersal to occur only within the habitat, which nullifies the risk of dispersal mortality.
+
+The new dispersal mode is implemented in the `random_disperse` function in `Model/src/disperse.R`. The function draws a random cell in the landscape, and by setting `force_habitat = TRUE`, it will only draw from all habitat cells. That means that dispersal is not only restricted to habitat cells, but also detached from the original location of the parent. We will explore what implications this might have in the following analysis.
+
+## Simulation setup
+
+To explore the effects of random dispersal within habitat, we run a set of 27 simulations with the new dispersal mode. 

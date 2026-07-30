@@ -103,7 +103,7 @@ vp_switch <- data.frame(
   frag = 1,
   ac = 1,
   hab = 0,
-  nb = 1,
+  nb = 0,
   disp = 0,
   disp_dist = 0,
   edge = 0

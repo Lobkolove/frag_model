@@ -83,7 +83,7 @@ notes <- NULL
 # Is the current array running in parallel to another? 
 # In that case we need to increment the sim_id by the number of simulations in the other array to avoid overlapping sim_ids.
 # If not, set spacer = 0. If yes, set spacer = number of simulations in the other array.
-spacer <- 27
+spacer <- 27L
 
 
 # Simulation -------------------------------------------------------------
@@ -91,7 +91,7 @@ spacer <- 27
 # Define a unique identifier for this simulation run (sim_id)
 if (to_log) {
   # Last used sim_id is determined from the log file, and the next sim_id is assigned.
-  sim_id <- unique_sim_id(log_file = log_file, increment = task_id + spacer)
+  sim_id <- unique_sim_id(log_file = log_file, increment = as.integer(task_id + spacer))
 } else {
   # If not logging, we can just use the task_id as sim_id
   sim_id <- task_id

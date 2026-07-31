@@ -11,7 +11,7 @@
 #SBATCH --qos=standard
 #SBATCH --output=logs/frag_sim_%A_%a.out
 #SBATCH --error=logs/frag_sim_%A_%a.err
-#SBATCH --array=1-27  
+#SBATCH --array=1-9  
 
 module add R
 module add GDAL

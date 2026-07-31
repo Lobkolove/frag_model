@@ -83,7 +83,7 @@ notes <- NULL
 # Is the current array running in parallel to another? 
 # In that case we need to increment the sim_id by the number of simulations in the other array to avoid overlapping sim_ids.
 # If not, set spacer = 0. If yes, set spacer = number of simulations in the other array.
-spacer <- 27
+spacer <- 0
 
 
 # Simulation -------------------------------------------------------------

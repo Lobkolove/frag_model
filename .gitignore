@@ -1,5 +1,5 @@
 .Rproj.user/
-.Rhistory 
+.Rhistory
 .DS_Store
 Model/run_model.R
 *.html
@@ -9,4 +9,8 @@ pics/
 data-raw/
 output/model_states/
 output/sampled_data/
+output/old_states/
+output/old_samples/
 Model/logs/
+/.quarto/
+**/*.quarto_ipynb

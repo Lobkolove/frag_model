@@ -39,4 +39,265 @@ The new dispersal mode is implemented in the `random_disperse` function in `Mode
 
 ## Simulation setup
 
-To explore the effects of random dispersal within habitat, we run a set of 27 simulations with the new dispersal mode. 
+To explore the effects of random dispersal within habitat, we run a total of 27 simulations with the new dispersal mode (hereafter called "random_habitat") and 27 simulations with the same parameter combinations but the old dispersal mode ("short"). For each dispersal mode, every simulation has a unique combination of fragmentation (0.2, 0.5, 0.8), environmental autocorrelation (0, 0.5, 1), and niche breadth (0.1, 0.2, 0.3). All other parameters are kept constant across simulations. The parameter combinations are summarized in the table below.
+
+<details>
+<summary>Show parameter combinations</summary>
+
+```{r}
+#| echo: false
+library(dplyr)
+source("Model/parameters.R")
+print(var_par)
+```
+
+</details>
+
+## Survey of population fluctuations
+
+To explore the effects of dispersal mode on population fluctuations, we will first summarize the population sizes right before and after fragmentation and at the end of simulation for all 27x2 simulations. 
+
+```{r}
+#| code-fold: true
+library(here)
+library(data.table)
+library(purrr)
+source("R/sim_select.R")
+
+r_paths <- sim_select(dispersal_type = "random", file_type = "state")
+r_states <- purrr::map(r_paths, fread)
+r_geom <- 
+
+s_paths <- sim_select(dispersal_type = "short_long", file_type = "state")
+s_states <- purrr::map(s_paths, fread)
+
+
+
+```
+
+### Dynamics of short dispersal
+
+As we have seen, as long as niche breadth is narrow (0.1), short dispersal shows much higher recruitment and population sizes. Surprisingly, this is also the case before fragmentation for simulations on a landscape with no environmental autocorrelation (0), where we wouldn't expect significant differences. A possible explanation for this is that short dispersal might regularly lead to dispersal to the very same cell of the parent agent, which is virtually impossible for random dispersal (1/2500 before fragmentation). Since the origin cell is always suitable for the offspring, this would lead to higher recruitment and population sizes.
+To test this, we will assess the probability of dispersal to the same cell for both dispersal modes. 
+
+```{r}
+source("Model/src/disperse.R")
+
+s_count <- 0
+r_count <- 0
+n_sims <- 10000
+for (i in seq(n_sims)) {
+  cur_loc <- c(sample.int(50, 1), sample.int(50, 1))
+
+  new_loc_s <- toroidal_disperse(
+    cur_loc = cur_loc,
+    d_sd = 2,
+    d_mean = 2,
+    grid_size = 50,
+    kernel = "exponential"
+  )
+  s_count <- s_count + all(new_loc_s == cur_loc)
+
+  new_loc_r <- random_disperse()
+  r_count <- r_count + all(new_loc_r == cur_loc)
+}
+cat(
+  "Probability of dispersing to the same cell:\n",
+  "short dispersal (mean distance = 2):",
+  s_count / n_sims * 100,
+  "%\n",
+  "random dispersal:",
+  r_count / n_sims * 100,
+  "%\n"
+)
+```
+
+As expected, almost 1 in 4 dispersal events with short dispersal lead to dispersal to the same cell, while this is virtually impossible for random dispersal. This means that even without environmental autocorrelation, short dispersal is highly advantageous for recruitment and population sizes, especially when niche breadth is narrow. But how does this change on the fragmented landscape? Let's first look at the growth rates of the populations after fragmentation.
+
+
+
+To better highlight the differences, we can also investigate the actual probabilities of recruitment on a fragmented landscape.
+
+We start by initializing a full habitat landscape with medium autocorrelation, populated with 10000 agents from 1000 species.
+```{r}
+library(data.table)
+library(raster)
+source("Model/src/initialize.R")
+source("Model/src/generate_agents.R")
+source("Model/src/distribute_agents.R")
+source("Model/src/landscape.R")
+source("Model/src/record_state.R")
+
+species_par <- data.frame(
+  species_id = 1:1000,
+  n_value = seq(from = 0, to = 1, length.out = 1000),
+  birth_rate = 0.85,
+  death_rate = 0.25
+)
+
+state_init <- initialize(
+  grid_size = 50,
+  ac_amount = 0.5,
+  n_species = 1000,
+  n_pop = 10000,
+  species_par = species_par,
+  k_inter = 50,
+  k_intra = 50,
+  niche_breadth = 0.1,
+  state_type = "full_state",
+  master_seed = 123
+)
+```
+Note that `distribute_agents` draws a suitable cell first and checks if cell capacity is reached only after, which means that the actual number of agents distributed might be lower than the requested number (especially for big populations). In this case `{r} nrow(state_init$agents)` agents were distributed, which is still a good population size to start with. 
+
+We can now apply different levels of fragmentation to the landscape and record the state of the population after fragmentation.
+```{r}
+source("Model/src/fragmentation.R")
+frag_low <- fragment(full_state = state_init, habitat = 0.15, fragmentation = 0.2)
+frag_medium <- fragment(full_state = state_init, habitat = 0.15, fragmentation = 0.5)
+frag_high <- fragment(full_state = state_init, habitat = 0.15, fragmentation = 0.8)
+```
+
+Now, we can pick a random agent and assess the probability of recruitment for both dispersal modes. We will do this by simulating 1000 birth events for randomly picked agents and counting how many of them lead to successful recruitment.
+
+```{r}
+#| code-fold: true
+
+source("Model/src/birth.R")
+
+n_sims <- 10000
+success_short <- list(low = 0, medium = 0, high = 0)
+success_random <- list(low = 0, medium = 0, high = 0)
+
+nb <- 0.1
+
+for (i in seq(n_sims)) {
+
+  # Low frag
+  random_agent_low <- frag_low$agents[sample.int(nrow(frag_low$agents), 1), ]
+  u <- species_par$n_value[random_agent_low$species_id]
+  cur_loc_low <- c(random_agent_low$x_loc, random_agent_low$y_loc)
+  new_loc_s_low <- toroidal_disperse(
+    cur_loc = cur_loc_low,
+    d_sd = 2,
+    d_mean = 2,
+    grid_size = 50,
+    kernel = "exponential"
+  )
+  new_loc_r_low <- random_disperse(
+    nrow = 50,
+    ncol = 50,
+    habitat_cells = frag_low$cells$habitat,
+    force_habitat = TRUE
+  )
+  if (check_recruit(agents = frag_low$agents, 
+                    grid = frag_low$grid, 
+                    location = new_loc_s_low, 
+                    u = u, 
+                    nb = nb,
+                    species_id = random_agent_low$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_short$low <- success_short$low + 1
+  }
+  if (check_recruit(agents = frag_low$agents, 
+                    grid = frag_low$grid, 
+                    location = new_loc_r_low, 
+                    u = u,
+                    nb = nb,
+                    species_id = random_agent_low$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_random$low <- success_random$low + 1
+  }
+
+  # Medium frag
+  random_agent_medium <- frag_medium$agents[sample.int(nrow(frag_medium$agents), 1), ]
+  u <- species_par$n_value[random_agent_medium$species_id]
+  cur_loc_medium <- c(random_agent_medium$x_loc, random_agent_medium$y_loc)
+  new_loc_s_medium <- toroidal_disperse(
+    cur_loc = cur_loc_medium,
+    d_sd = 2,
+    d_mean = 2,
+    grid_size = 50,
+    kernel = "exponential"
+  )
+  new_loc_r_medium <- random_disperse(
+    nrow = 50,
+    ncol = 50,
+    habitat_cells = frag_medium$cells$habitat,
+    force_habitat = TRUE
+  )
+  if (check_recruit(agents = frag_medium$agents, 
+                    grid = frag_medium$grid, 
+                    location = new_loc_s_medium, 
+                    u = u,
+                    nb = nb,
+                    species_id = random_agent_medium$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_short$medium <- success_short$medium + 1
+  }
+  if (check_recruit(agents = frag_medium$agents, 
+                    grid = frag_medium$grid, 
+                    location = new_loc_r_medium, 
+                    u = u,
+                    nb = nb,
+                    species_id = random_agent_medium$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_random$medium <- success_random$medium + 1
+  }
+
+  # High frag
+  random_agent_high <- frag_high$agents[sample.int(nrow(frag_high$agents), 1), ]
+  u <- species_par$n_value[random_agent_high$species_id]
+  cur_loc_high <- c(random_agent_high$x_loc, random_agent_high$y_loc)
+  new_loc_s_high <- toroidal_disperse(
+    cur_loc = cur_loc_high,
+    d_sd = 2,
+    d_mean = 2,
+    grid_size = 50,
+    kernel = "exponential"
+  )
+  new_loc_r_high <- random_disperse(
+    nrow = 50,
+    ncol = 50,
+    habitat_cells = frag_high$cells$habitat,
+    force_habitat = TRUE
+  )
+  if (check_recruit(agents = frag_high$agents, 
+                    grid = frag_high$grid, 
+                    location = new_loc_s_high, 
+                    u = u,
+                    nb = nb,
+                    species_id = random_agent_high$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_short$high <- success_short$high + 1
+  }
+  if (check_recruit(agents = frag_high$agents, 
+                    grid = frag_high$grid, 
+                    location = new_loc_r_high, 
+                    u = u,
+                    nb = nb,
+                    species_id = random_agent_high$species_id,
+                    k_inter = 50,
+                    k_intra = 50)) {
+    success_random$high <- success_random$high + 1
+  }
+}
+
+cat(
+  "Recruitment success probabilities with nb =", nb, ":\n",
+  "Short dispersal (mean distance = 2):\n",
+  "Low fragmentation:", success_short$low / n_sims * 100, "%\n",
+  "Medium fragmentation:", success_short$medium / n_sims * 100, "%\n",
+  "High fragmentation:", success_short$high / n_sims * 100, "%\n",
+  "Random dispersal within habitat:\n",
+  "Low fragmentation:", success_random$low / n_sims * 100, "%\n",
+  "Medium fragmentation:", success_random$medium / n_sims * 100, "%\n",
+  "High fragmentation:", success_random$high / n_sims * 100, "%\n"
+)
+
+```

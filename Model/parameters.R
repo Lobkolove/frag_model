@@ -45,7 +45,7 @@ mod_par <- data.frame(
   steps_post_frag = 60, # number of steps after fragmentation event
   birth_rate = 0.85, # chances of an individual giving birth
   death_rate = 0.25, # chances of an individual dying
-  dispersal = 0, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)
+  dispersal = 1, # Determining Long and short dispersal. value is proportion of short dispersal (0-1)
   mean_disp = 2, # Parameter for the mean dispersal distance
   sd_disp = 2, # parameter for the standard deviation for dispersal kernel
   k_inter = 50, # cell carrying capacity for all species

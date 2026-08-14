@@ -27,51 +27,105 @@ execute:
 
 ## Background
 
-The simulations used for Gelber et al. [@gelber_geometric_2025] all used an exponential dispersal kernel, meaning that the probability of dispersal decreases exponentially with distance. This is a common assumption in population ecology and should be a fair representation of dispersal for sessile organisms. Mean dispersal distance was varied between different simulations, to see how it might affect geometric and demographic effects of fragmentation. At the same time, the study also tried to determine how different edge effects (from strongly negative to strongly positive) interact with dispersal distance to modulate the effects of fragmentation on species richness. Although this novel approach has already yielded some interesting results, some aspects might still need to be addressed.
+The simulations used for Gelber et al. [@gelber_geometric_2025] all used an exponential dispersal kernel, meaning that the probability of dispersal decreases exponentially with distance. This is a common assumption in population ecology and should be a fair representation of dispersal for many sessile organisms (e.g. seeds dispersed by wind). Mean dispersal distance was varied between different simulations, to see how it might affect geometric and demographic effects of fragmentation. At the same time, the study also tried to determine how different edge effects (from strongly negative to strongly positive) interact with dispersal distance to modulate the effects of fragmentation on species richness. Although this novel approach has already yielded some interesting results, some aspects might still need to be addressed.
 
 ### Positive demographic effects of fragmentation
 
 An issue connected with the current approach is that by design, higher fragmentation landscapes have much higher dispersal mortality. Since the direction of dispersal is random, the probability of newly born individuals dispersing outside of the habitat is much higher in fragmented landscapes. This means that even if edge effects are strongly positive, they are outweighed by the negative effects of dispersal mortality, leading to strong negative demographic effects. 
 
-For better understanding the spatial components of fragmentation effects, we are also interested in modelling positive demographic effects. In order to do so, we had the idea to implement a dispersal mode which forces dispersal to occur only within the habitat, which nullifies the risk of dispersal mortality.
+For better understanding the spatial components of fragmentation effects, we are also interested in modelling positive demographic effects. In order to do so, we had the idea to implement a dispersal mode which forces dispersal to occur only within the habitat, which nullifies the risk of dispersal mortality. Such a dispersal mode might be less realistic for sessile organisms, although it can be a plausible scenario for plants with animal-mediated dispersal (e.g. seeds dispersed by birds), when the habitats of the dispersal vector and of the plant overlap.
 
 The new dispersal mode is implemented in the `random_disperse` function in `Model/src/disperse.R`. The function draws a random cell in the landscape, and by setting `force_habitat = TRUE`, it will only draw from all habitat cells. That means that dispersal is not only restricted to habitat cells, but also detached from the original location of the parent. We will explore what implications this might have in the following analysis.
 
 ## Simulation setup
 
-To explore the effects of random dispersal within habitat, we run a total of 27 simulations with the new dispersal mode (hereafter called "random_habitat") and 27 simulations with the same parameter combinations but the old dispersal mode ("short"). For each dispersal mode, every simulation has a unique combination of fragmentation (0.2, 0.5, 0.8), environmental autocorrelation (0, 0.5, 1), and niche breadth (0.1, 0.2, 0.3). All other parameters are kept constant across simulations. The parameter combinations are summarized in the table below.
-
-<details>
-<summary>Show parameter combinations</summary>
+To explore the effects of random dispersal within habitat, we run a total of 9 simulations with the new dispersal mode (hereafter called "random_habitat") and 9 simulations with the same parameter combinations but the old dispersal mode ("short"). For each dispersal mode, every simulation has a unique combination of fragmentation (0.2, 0.5, 0.8), environmental autocorrelation (0, 0.5, 1). All other parameters are kept constant across simulations. The parameter combinations are summarized in the table below.
 
 ```{r}
-#| echo: false
-library(dplyr)
-source("Model/parameters.R")
-print(var_par)
-```
-
-</details>
-
-## Survey of population fluctuations
-
-To explore the effects of dispersal mode on population fluctuations, we will first summarize the population sizes right before and after fragmentation and at the end of simulation for all 27x2 simulations. 
-
-```{r}
+#| label: tbl-params
+#| tbl-cap: "Parameter combinations for the 18 simulations used in this analysis. The first 9 simulations use random dispersal within habitat, the last 9 simulations use short exponential dispersal with mean distance 2. 'fragmentation' refers to the spatial configuration of patches, with low values indicating fewer, bigger patches and high values indicating more, smaller patches; 'ac_amount' is the amount of environmental autocorrelation, 'habitat' is the proportion of habitat after fragmentation, and 'dispersal_dist' is the mean dispersal distance (only relevant for short dispersal)."
 #| code-fold: true
 library(here)
 library(data.table)
+library(dplyr)
+log <- fread(here("output", "simulations_log.csv"))
+
+params <- log[1:18, ] |> 
+  select(sim_id, fragmentation, ac_amount, habitat, dispersal_type, dispersal_dist)
+
+knitr::kable(params)
+```
+
+
+## Survey of population fluctuations
+
+To explore the effects of dispersal mode on population fluctuations, we will first summarize the population sizes right before and after fragmentation and at the end of simulation for all 9x2 simulations. 
+
+```{r}
+#| label: tbl-populations
+#| tbl-cap: "Population sizes after initialization ('start'), before fragmentation ('pre_fragmentation'), after fragmentation ('post_fragmentation') and at the end of simulation ('final') for all 18 simulations."
+#| code-fold: true
 library(purrr)
 source("R/sim_select.R")
 
-r_paths <- sim_select(dispersal_type = "random", file_type = "state")
-r_states <- purrr::map(r_paths, fread)
-r_geom <- 
+count_agents <- function(state) {
+  steps <- names(state)
+  populations <- sapply(steps, function(step) nrow(state[[step]]$agents))
+  SR <- sapply(steps, function(step) length(unique(state[[step]]$agents$species_id)))
+  return(data.frame(step = steps, population = populations, species_richness = SR))
+}
 
-s_paths <- sim_select(dispersal_type = "short_long", file_type = "state")
-s_states <- purrr::map(s_paths, fread)
+r_paths <- sim_select(dispersal_type == "random", file_type = "state")
+r_states <- purrr::map(here(r_paths), readRDS)
+r_counts <- purrr::map(r_states, count_agents)
 
+s_paths <- sim_select(dispersal_type == "short_long", file_type = "state")
+s_states <- purrr::map(here(s_paths), readRDS)
+s_counts <- purrr::map(s_states, count_agents)
 
+params <- params |> 
+  select(sim_id, dispersal_type, fragmentation, ac_amount)
+
+# For each simulation, create df with steps as columns and populations as values
+r_pops <- purrr::map2(r_counts, params$sim_id[params$dispersal_type == "random"], function(counts, sim_id) {
+  counts$sim_id <- sim_id
+  return(counts)
+}) |> 
+  bind_rows() |> 
+  left_join(params, by = "sim_id") |> 
+  select(-species_richness)
+
+r_pops_wide <- tidyr::pivot_wider(names_from = step, values_from = population)
+
+s_pops <- purrr::map2(s_counts, params$sim_id[params$dispersal_type == "short_long"], function(counts, sim_id) {
+  counts$sim_id <- sim_id
+  return(counts)
+}) |> 
+  bind_rows() |> 
+  left_join(params, by = "sim_id") |> 
+  select(-species_richness)
+
+s_pops_wide <- tidyr::pivot_wider(names_from = step, values_from = population)
+
+knitr::kable(rbind(r_pops_wide, s_pops_wide))
+```
+
+```{r}
+#| label: fig-populations
+#| fig-cap: "Population sizes after initialization ('start'), before fragmentation ('pre_fragmentation'), after fragmentation ('post_fragmentation') and at the end of simulation ('final') for all 18 simulations. The first 9 simulations use random dispersal within habitat, the last 9 simulations use short exponential dispersal with mean distance 2."
+#| code-fold: true
+library(ggplot2)
+library(ggh4x)
+
+pops <- rbind(r_pops, s_pops) |> 
+  mutate(step = factor(step, levels = c("start", "pre_fragmentation", "post_fragmentation", "final")))
+
+ggplot(pops, aes(x = step, y = population, group = sim_id, color = dispersal_type)) +
+  geom_line() +
+  facet_nested("Fragmentation" + fragmentation ~ "Autocorrelation" + ac_amount) +
+  labs(x = "Simulation step", y = "Population size", color = "Dispersal mode") +
+  theme_bw() +
+  theme(legend.position = "bottom") 
 
 ```
 
@@ -148,7 +202,7 @@ state_init <- initialize(
   master_seed = 123
 )
 ```
-Note that `distribute_agents` draws a suitable cell first and checks if cell capacity is reached only after, which means that the actual number of agents distributed might be lower than the requested number (especially for big populations). In this case `{r} nrow(state_init$agents)` agents were distributed, which is still a good population size to start with. 
+Note that `distribute_agents` draws a suitable cell first and checks if cell capacity is reached only after, which means that the actual number of agents distributed might be lower than the requested number (especially for big populations). In this case `{r} nrow(state_init$agents)` agents were distributed. 
 
 We can now apply different levels of fragmentation to the landscape and record the state of the population after fragmentation.
 ```{r}
@@ -289,15 +343,15 @@ for (i in seq(n_sims)) {
 }
 
 cat(
-  "Recruitment success probabilities with nb =", nb, ":\n",
+  "Recruitment success probabilities with nb =", nb, "\n\n",
   "Short dispersal (mean distance = 2):\n",
-  "Low fragmentation:", success_short$low / n_sims * 100, "%\n",
-  "Medium fragmentation:", success_short$medium / n_sims * 100, "%\n",
-  "High fragmentation:", success_short$high / n_sims * 100, "%\n",
+  "   Low fragmentation:", success_short$low / n_sims * 100, "%\n",
+  "   Medium fragmentation:", success_short$medium / n_sims * 100, "%\n",
+  "   High fragmentation:", success_short$high / n_sims * 100, "%\n\n",
   "Random dispersal within habitat:\n",
-  "Low fragmentation:", success_random$low / n_sims * 100, "%\n",
-  "Medium fragmentation:", success_random$medium / n_sims * 100, "%\n",
-  "High fragmentation:", success_random$high / n_sims * 100, "%\n"
+  "   Low fragmentation:", success_random$low / n_sims * 100, "%\n",
+  "   Medium fragmentation:", success_random$medium / n_sims * 100, "%\n",
+  "   High fragmentation:", success_random$high / n_sims * 100, "%\n"
 )
 
 ```

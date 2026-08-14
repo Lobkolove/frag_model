@@ -1,0 +1,111 @@
+---
+title: "Spatially explicit rarefaction to control for geometric constraints in population dynamics"
+subtitle: "A methodological exploration of SER comparisons"
+author: "J. N. Thiem"
+bibliography: fragmentation.bib
+csl: apa-eu.csl
+date: today
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    respect-user-color-scheme: true
+    theme: 
+      light: flatly
+      dark: darkly
+    highlight-style: 
+      light: github-light
+      dark: github-dark
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Introduction
+
+Similarly to the distance decay of similarity, spatially explicit rarefaction could be used to control for the geometric component of fragmentation. Right after the fragmentation event, we expect higher total landscape richness for higher fragmentation levels, since these are more likely to preserve higher habitat heterogeneity and thus more species. The underlying distribution of species should still be the same, which explains why distance decay curves overlap for different fragmentation levels right after the fragmentation event. Similarly, we would expect that spatially explicit rarefaction curves would overlap for different fragmentation levels right after the fragmentation event. The intrinsic problem with this approach is that controlling for spatial extent alone is not enough, since for a fixed area the sampling effort can vary quite dramatically depending on the fragmentation level. Therefore, we need to control for both spatial extent and sampling effort. In this exploration, we will explore different options to do so.
+
+## Methods
+
+### Option 1: sampling from a predefined area
+
+To avoid conflating the effects of sampling effort and spatial extent, we can sample from a predefined area. For example, we can define a polygon of a fixed size and sample from it. This way, we control for spatial extent, but we still need to control for sampling effort. We can do this by randomly selecting a fixed number of cells from the predefined area (e.g. 30). This approach allows us to compare rarefaction curves across different fragmentation levels while controlling for both spatial extent and sampling effort.
+
+Our full samples right after fragmentation contain the full information of species and relative abundances for all habitat cells after fragmentation. From all these habitat cells, we want to sample a fixed number of cells in a way that the area encompassed by the sampled cells is the same across fragmentation levels. To do this, we can use a convex hull to define the area encompassed by the sampled cells. We can then randomly select a fixed number of cells from the predefined area and calculate the rarefaction curves for each fragmentation level.
+
+```{r}
+library(here)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+library(data.table)
+library(purrr)
+source("R/chull_area.R")
+source("R/chull_area_sample.R")
+source("R/sim_select.R")
+source("R/sSBR.R")
+source("R/ref_curve.R")
+
+
+# Select simulations with intermediate spatial autocorrelation and short dispersal
+data_paths <- sim_select(ac_amount == 0.5, dispersal_type == "short_long", sampled = "all")
+
+# Read in data, filter for post-fragmentation, and pivot to wide format
+data_list <- map(data_paths, function(path) {
+    read.csv(path) |> 
+        dplyr::filter(step_label == "post_fragmentation") |>
+        tidyr::pivot_wider(
+            names_from = "species_id", 
+            values_from = "n", 
+            values_fill = 0, 
+            names_prefix = "sp_"
+        )
+})
+
+# Sample from each dataset using chull_area_sample
+data_sampled <- map(data_list, function(data) {
+    chull_area_sample(data, n_sample = 30, target_area = 375, A_max = 375, A_min = 325)
+})
+
+# Calculate rarefaction curves for each sampled dataset
+effort_ref <- tibble(
+    samp_eff = 3:30,
+    spat_ext = seq(1, 375, length.out = 28)
+)
+rarefaction_full <- map(data_sampled, function(sample) {
+    sSBR(
+        model_sample = sample, 
+        method = "area", 
+        effort_ref = effort_ref
+    )
+})
+
+# Merge smoothed rarefaction curves into a single data frame, adding fragmentation level information
+frag_levels <- c("low", "medium", "high")
+rarefaction_curves <- vector("list", length(frag_levels))
+for (level in frag_levels) {
+    i <- which(frag_levels == level)
+    rarefaction_curves[[i]] <- rarefaction_full[[i]]$smooth |> 
+        mutate(fragmentation = level)
+}
+rarefaction_curves_df <- bind_rows(rarefaction_curves)
+
+# Plot rarefaction curves
+ggplot(rarefaction_curves_df, aes(x = spat_ext, y = S, color = fragmentation)) +
+    geom_line(size = 1) +
+    geom_ribbon(aes(ymin = S_low, ymax = S_high, fill = fragmentation), 
+                alpha = 0.2, col = NA) +
+    labs(
+        x = "Spatial Extent (Area of Convex Hull)",
+        y = "Species Richness",
+        color = "Fragmentation Level", 
+        fill = "Fragmentation Level"
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+```

@@ -1,5 +1,3 @@
-source("R/chull_area.R")
-
 expand_hull_area <- function(
   data, 
   S, 
@@ -104,12 +102,3 @@ chull_area_sample <- function(
   return(data[S, ])
 }
 
-# Test with full samples
-
-test_data <- read.csv("output/sampled_data/0015_ac0.9_hab0.15_frag0.8_edge1_disp2_r001_all.csv") |> 
-  dplyr::filter(step_label == "post_fragmentation") |>
-  tidyr::pivot_wider(names_from = "species_id", values_from = "n", values_fill = 0, names_prefix = "sp_")
-
-
-sample1 <- chull_area_sample(test_data, n_sample = 30, target_area = 375, A_max = 375, A_min = 325)
-chull_area(sample1)

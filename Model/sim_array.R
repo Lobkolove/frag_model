@@ -156,6 +156,7 @@ if (export_states) {
     sep = ""
   )
 } else {
+  state_file <- NULL
   cat("No states were exported. To export states, set export_states = TRUE.\n\n")
 }
 
@@ -211,7 +212,7 @@ if (length(sampling_methods > 0)) {
 # The helper function automatically writes the log entry to the specified log file.
 # Since every simulation has a unique sim_id, we shouldn't have concurrency issues.
 if (to_log) {
-  final_log <- log_entry(
+  log_entry(
     meta = meta,
     job_id = job_id, 
     scenario_key = scenario, 

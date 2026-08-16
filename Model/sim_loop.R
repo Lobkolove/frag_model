@@ -76,7 +76,6 @@ to_log <- FALSE
 
 # Assess the number of simulations to run based on the parameter grid (var_par)
 n_sims <- nrow(var_par)
-results_list <- vector(mode = "list", length = n_sims)
 
 # Simulations loop
 for (i in seq_len(n_sims)) {
@@ -122,9 +121,6 @@ for (i in seq_len(n_sims)) {
     record_steps = steps_to_record
   )
 
-  # Store the results for this simulation
-  results_list[[i]] <- results
-
   # Extract metadata from the last recorded state, to use for filenaming and logging.
   meta <- results[[length(results)]]$meta
   
@@ -145,7 +141,8 @@ for (i in seq_len(n_sims)) {
       sep = ""
     )
   } else {
-  cat("No states were exported. To export states, set export_states = TRUE.\n\n")
+    state_file <- NULL
+    cat("No states were exported. To export states, set export_states = TRUE.\n\n")
   }
   
   ## Sampling ---------------------------------------------------------------

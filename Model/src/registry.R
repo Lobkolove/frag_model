@@ -43,8 +43,8 @@ scenario_key <- function(
   }
 
   # Combine the key-value pairs into a single string.
-  scenario_key <- paste0(key_values, collapse = "_")
-  return(scenario_key)
+  scenario <- paste0(key_values, collapse = "_")
+  return(scenario)
 }
 
 rep_number <- function(
@@ -72,10 +72,6 @@ rep_number <- function(
   if (nrow(log) == 0L) return(1L)
   if (!all(parameters %in% names(meta))) {
     stop("One or more specified parameters are not present in the metadata.")
-  }
-
-  if (is.null(log$dispersal_type)) {
-    log$dispersal_type <- "short_long"
   }
   
   missing_cols <- setdiff(parameters, names(log))
@@ -109,7 +105,7 @@ unique_sim_id <- function(
   if (!file.exists(log_file)) {
     sim_id <- increment
   } else {
-    log <- fread(log_file)
+    log <- data.table::fread(log_file)
     last_sim_id <- max(as.numeric(log[[id_col]]))
     sim_id <- last_sim_id + increment
   }
@@ -122,14 +118,14 @@ unique_sim_id <- function(
 }
 
 
-sim_filename <- function(sim_id, scenario_key, replicate_num) {
+sim_filename <- function(sim_id, scenario, replicate_num) {
   if (is.numeric(sim_id)) {
     sim_id <- sprintf("%04d", sim_id)  # Pad with zeros to ensure 4 digits
   }
   if (is.numeric(replicate_num)) {
     replicate_num <- sprintf("%03d", replicate_num)  # Pad with zeros to ensure 3 digits
   }
-  filename <- paste0(sim_id, "_", scenario_key, "_r", replicate_num)
+  filename <- paste0(sim_id, "_", scenario, "_r", replicate_num)
   return(filename)
 }
 
@@ -149,7 +145,7 @@ log_entry <- function(
   current_id <- as.integer(meta$sim_id)
 
   if (file.exists(log_file)) {
-    log <- fread(log_file, colClasses = list(character = c("sim_id", "replicate_num")))    
+    log <- fread(log_file, colClasses = list(character = c("sim_id", "replicate_num", "state_file", "sampled_files")), na.strings = c("NA", ""))    
     if (current_id %in% as.integer(log$sim_id)) {
       if (!overwrite) {
         warning("Simulation ", current_id, " is already in the log and overwriting is disabled.\nSkipping log entry.\n", call. = FALSE)
@@ -173,7 +169,7 @@ log_entry <- function(
   entry <- data.table(
     sim_id = sprintf("%04d", current_id),
     job_id = job_id, 
-    scenario_key = scenario_key, 
+    scenario_key = scenario, 
     replicate_num = sprintf("%03d", as.integer(replicate_num)),
     run_date = run_date, 
     project_version = project_version,
@@ -183,13 +179,13 @@ log_entry <- function(
     habitat = meta$habitat, 
     niche_breadth = meta$niche_breadth, #Simon was here!
     dispersal_type = meta$dispersal_type, 
-    dispersal_kernel = ifelse(meta$dispersal_type == "random", NA_character_, meta$dispersal_kernel),
-    dispersal_ratio = ifelse(meta$dispersal_type == "random", NA_real_, meta$dispersal_ratio),
-    dispersal_dist = ifelse(meta$dispersal_type == "random", NA_integer_, meta$dispersal_dist), 
+    dispersal_kernel = if (meta$dispersal_type == "random") NA_character_ else as.character(meta$dispersal_kernel),
+    dispersal_ratio = if (meta$dispersal_type == "random") NA_real_ else meta$dispersal_ratio,
+    dispersal_dist = if (meta$dispersal_type == "random") NA_integer_ else meta$dispersal_dist, 
     edge_effect = meta$edge_effect,
     status = status,
-    state_file = as.character(fs::path_rel(state_file, start = here::here())),
-    sampled_files = paste(fs::path_rel(sampled_files, start = here::here()), collapse = "; ")
+    state_file = if (is.null(state_file)) NA_character_ else as.character(fs::path_rel(state_file, start = here::here())),
+    sampled_files = if (length(sampled_files) == 0) NA_character_ else paste(fs::path_rel(sampled_files, start = here::here()), collapse = "; ")
   )
 
   # Insert entry into log file, keeping sorted by sim_id
@@ -197,7 +193,7 @@ log_entry <- function(
   log <- log[order(as.integer(log$sim_id)), ]
 
   # Write updated log back to file
-  fwrite(log, log_file)
+  data.table::fwrite(log, log_file, na = "NA")
   # fwrite(entry, log_file, append = file.exists(log_file))
   cat("\nA new entry for simulation", current_id, "was written to", log_file, "\n\n")
 }

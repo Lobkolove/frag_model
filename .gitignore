@@ -11,6 +11,7 @@ output/model_states/
 output/sampled_data/
 output/old_states/
 output/old_samples/
+output/old_logs/
 Model/logs/
 /.quarto/
 **/*.quarto_ipynb

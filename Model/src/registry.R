@@ -149,7 +149,7 @@ log_entry <- function(
   current_id <- as.integer(meta$sim_id)
 
   if (file.exists(log_file)) {
-    log <- fread(log_file, colClasses = list(character = c("sim_id", "replicate_num", "state_file", "sampled_files")), na.strings = c("NA", ""))    
+    log <- fread(log_file, colClasses = list(character = c("sim_id", "replicate_num", "project_version", "state_file", "sampled_files")), na.strings = c("NA", ""))    
     if (current_id %in% as.integer(log$sim_id)) {
       if (!overwrite) {
         warning("Simulation ", current_id, " is already in the log and overwriting is disabled.\nSkipping log entry.\n", call. = FALSE)

@@ -106,8 +106,12 @@ unique_sim_id <- function(
     sim_id <- increment
   } else {
     log <- data.table::fread(log_file)
-    last_sim_id <- max(as.numeric(log[[id_col]]))
-    sim_id <- last_sim_id + increment
+    if (nrow(log) == 0) {
+      sim_id <- increment
+    } else {
+      last_sim_id <- max(as.numeric(log[[id_col]]))
+      sim_id <- last_sim_id + increment
+    }
   }
 
   if (as_string) {

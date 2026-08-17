@@ -126,7 +126,7 @@ for (i in seq_len(n_sims)) {
   
   # Similarly to what we did with sim_id, we can also assign a replicate number for this scenario  
   scenario <- scenario_key(meta = meta)
-  replicate_num <- rep_number(meta = meta)
+  replicate_num <- rep_number(meta = meta, log_file = log_file)
   filename <- sim_filename(sim_id, scenario, replicate_num)
   
   cat("\nSimulation completed.\n\n ")
@@ -180,7 +180,7 @@ for (i in seq_len(n_sims)) {
   
   }
   
-  if (length(sampling_methods > 0)) {
+  if (length(sampling_methods) > 0) {
     cat(
       "\nData was sampled for all time steps using methods [", 
       paste(sampling_methods, collapse = ", "), 

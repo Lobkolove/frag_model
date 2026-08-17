@@ -139,7 +139,7 @@ results <- clean_run(
 meta <- results[[length(results)]]$meta
 
 scenario <- scenario_key(meta = meta)
-replicate_num <- rep_number(meta = meta)
+replicate_num <- rep_number(meta = meta, log_file = log_file)
 filename <- sim_filename(sim_id, scenario, replicate_num)
 
 cat("\nSimulation completed.\n\n")
@@ -193,7 +193,7 @@ for (method in names(sampling_methods)) {
   sampled_files <- c(sampled_files, sampled_file)
 }
 
-if (length(sampling_methods > 0)) {
+if (length(sampling_methods) > 0) {
   cat(
     "\nData was sampled for all time steps using methods [", 
     paste(sampling_methods, collapse = ", "), 

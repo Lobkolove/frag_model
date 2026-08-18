@@ -113,9 +113,31 @@ n_scenarios <- nrow(var_par)
 idx <- ((task_id - 1) %% n_scenarios) + 1
 cur_var_par <- var_par[idx, ]
 
+# Determine dispersal mode
+dispersal_type <- ifelse(switch$dispersal_type == 1, "short_long", "random")
+
+# Base replicate number from the log (before this array)
+base_rep <- rep_number(
+  meta = list(
+    sim_id = sim_id,
+    ac_amount = cur_var_par$ac,
+    habitat = cur_var_par$hab,
+    fragmentation = cur_var_par$frag,
+    edge_effect = cur_var_par$edge,
+    niche_breadth = cur_var_par$nb,
+    dispersal_type = dispersal_type,
+    dispersal_dist = cur_var_par$disp_dist
+  ),
+  log_file = log_file
+)
+
+# Round index: 0 for first pass through var_par, 1 for second, etc.
+round_index <- ceiling(task_id / n_scenarios) - 1L
+replicate_num <- base_rep + round_index
+
 cat(
   "Running simulation ", sim_id, " with:\n\n   ",
-  "Dispersal mode: ", ifelse(switch$dispersal_type == 1, "short_long", "random"), "\n\n   ",
+  "Dispersal mode: ", dispersal_type, "\n\n   ",
   "Parameters:\n      ",
   paste(sprintf("%-10s = %s", names(cur_var_par), unlist(cur_var_par)), collapse = "\n      "),
   "\n\n", 
@@ -139,7 +161,6 @@ results <- clean_run(
 meta <- results[[length(results)]]$meta
 
 scenario <- scenario_key(meta = meta)
-replicate_num <- rep_number(meta = meta, log_file = log_file)
 filename <- sim_filename(sim_id, scenario, replicate_num)
 
 cat("\nSimulation completed.\n\n")

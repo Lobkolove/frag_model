@@ -60,6 +60,7 @@ library(here)
 library(data.table)
 library(tidyverse)
 library(patchwork)
+library(vegan)
 source(here("R", "sim_select.R"))
 source(here("R", "dist_decay.R"))
 
@@ -70,15 +71,16 @@ data_list <- purrr::map(here(paths), fread)
 # Convert to wide format for distance decay analysis
 data_wide <- data_list %>%
     map(
-        ~ .x %>%
+        ~ .x |> 
             tidyr::pivot_wider(
-            names_from = species_id,
-            values_from = n,
-            values_fill = 0,
-            names_prefix = "sp_",
-            names_sort = TRUE
+                names_from = species_id,
+                values_from = n,
+                values_fill = 0,
+                names_prefix = "sp_",
+                names_sort = TRUE
+            ) |> 
+            select(-sp_NA)
     )
-)
 
 # Run distance decay analysis for each simulation
 dd_results <- list(
@@ -100,7 +102,7 @@ for (i in seq_along(data_wide)) {
     dd_results$post_frag[[i]] <- dist_decay(
         post_frag,
         dist_type = "euclidean",
-        method = "bray",
+        method = "jaccard",
         distvec = seq(0, 25, length.out = 200)
     )$smooth %>%
         dplyr::select(distance, similarity) %>%
@@ -152,40 +154,70 @@ dd_summary <- bind_rows(dd_summaries) %>%
     )
 
 # Assess alpha and gamma div for each dataset
-SR_results <- list(
+div_results <- list(
     post_frag = vector("list", length(data_list)),
     final = vector("list", length(data_list))
 )
-for (i in seq_along(data_list)) {
+for (i in seq_along(data_wide)) {
 
-    post_frag <- data_list[[i]] %>% 
+    post_frag <- data_wide[[i]] %>% 
         dplyr::filter(step_label == "post_fragmentation")
 
-    pf_summary <- post_frag %>% 
-        dplyr::group_by(sim_id, fragmentation, sample_id) %>% 
-        dplyr::summarise(richness = n(), .groups = "drop")
+    pf_spec_table <- post_frag |> 
+        select(starts_with("sp_"))
+
+    post_frag <- post_frag %>% 
+        dplyr::mutate(
+            richness = specnumber(pf_spec_table),
+            hill_shannon = as.numeric(renyi(pf_spec_table, scales = 1, hill = T)),
+            hill_simpson = as.numeric(renyi(pf_spec_table, scales = 2, hill = T)),
+            evenness = log(hill_shannon) / log(richness)
+        )
+
+    pf_summary <- post_frag %>%
+        dplyr::group_by(sim_id, fragmentation, sample_id) %>%
+        dplyr::summarise(
+            across(richness:evenness, ~ mean(., na.rm = T)),
+            .groups = "drop"
+        )
     
     pf_alpha <- mean(pf_summary$richness, na.rm = TRUE)
-    pf_gamma <- length(unique(post_frag$species_id))
+    pf_gamma <- sum(rowSums(pf_spec_table) > 0)
     
-    SR_results$post_frag[[i]] <- list(summary = pf_summary,
-                                      alpha = pf_alpha,
-                                      gamma = pf_gamma)
+    div_results$post_frag[[i]] <- list(
+        summary = pf_summary,
+        alpha = pf_alpha,
+        gamma = pf_gamma
+    )
     
-    final <- data_list[[i]] %>% 
+    final <- data_wide[[i]] %>% 
         dplyr::filter(step_label == "final")
     
+    fin_spec_table <- final |> 
+        select(starts_with("sp_"))
+
+    final <- final %>% 
+        dplyr::mutate(
+            richness = specnumber(fin_spec_table),
+            hill_shannon = as.numeric(renyi(fin_spec_table, scales = 1, hill = T)),
+            hill_simpson = as.numeric(renyi(fin_spec_table, scales = 2, hill = T)),
+            evenness = log(hill_shannon) / log(richness)
+        )
+
     fin_summary <- final %>% 
         dplyr::group_by(sim_id, fragmentation, sample_id) %>% 
-        dplyr::summarise(richness = n(), .groups = "drop")
+        dplyr::summarise(
+            across(richness:evenness, ~ mean(., na.rm = T)),
+            .groups = "drop"
+        )
 
     fin_alpha <- mean(fin_summary$richness, na.rm = TRUE)
-    fin_gamma <- length(unique(final$species_id))
+    fin_gamma <- sum(rowSums(fin_spec_table) > 0)
 
     sim_id <- first(final$sim_id)
     fragmentation <- first(final$fragmentation)
 
-    SR_results$final[[i]] <- list(sim_id = sim_id,
+    div_results$final[[i]] <- list(sim_id = sim_id,
                                   fragmentation = fragmentation,
                                   summary = fin_summary,
                                   alpha = fin_alpha,
@@ -194,32 +226,44 @@ for (i in seq_along(data_list)) {
 }
 
 # Aggregate species richness data into tidy format for plotting
-# Alpha diversity (local scale) - per sample
+# Alpha diversity (local scale) - per simulation and timestep
 alpha_tidy <- bind_rows(
     # Post-fragmentation
-    SR_results$post_frag %>%
-        map_df(
-        ~ .x$summary %>%
-            mutate(step_label = "post_fragmentation"),
-        .id = "dataset_idx"
+    div_results$post_frag |> 
+        map_df( 
+            ~ tibble(
+                sim_id = .x$summary$sim_id[1],
+                fragmentation = .x$summary$fragmentation[1]
+            ) %>%
+                mutate(
+                    step_label = "post_fragmentation",
+                    mean_richness = .x$alpha
+                )
         ),
     
     # Final
-    SR_results$final %>%
+    div_results$final %>%
         map_df(
-        ~ .x$summary %>%
-            mutate(step_label = "final"),
+            ~ tibble(
+                sim_id = .x$sim_id,
+                fragmentation = .x$fragmentation
+            ) %>%
+                mutate(
+                    step_label = "final",
+                    mean_richness = .x$alpha
+                ),
         .id = "dataset_idx"
         )
 ) %>%
-    mutate(scale = "Local (alpha)",
-           richness_value = richness) %>%
-    select(sim_id, fragmentation, step_label, scale, richness_value)
+    mutate(
+        scale = "Local (alpha)"
+    ) %>%
+    select(sim_id, fragmentation, step_label, scale, mean_richness)
 
 # Gamma diversity (landscape scale) - per dataset
 gamma_tidy <- bind_rows(
     # Post-fragmentation
-    SR_results$post_frag %>%
+    div_results$post_frag %>%
         map_df(
             ~ {
                 tibble(
@@ -227,13 +271,13 @@ gamma_tidy <- bind_rows(
                     fragmentation = .x$summary$fragmentation[1],
                     step_label = "post_fragmentation",
                     scale = "Landscape (gamma)",
-                    richness_value = .x$gamma
+                    mean_richness = .x$gamma
                 )
             }
         ),
   
     # Final
-    SR_results$final %>%
+    div_results$final %>%
         map_df(
             ~ {
                 tibble(
@@ -241,14 +285,14 @@ gamma_tidy <- bind_rows(
                     fragmentation = .x$summary$fragmentation[1],
                     step_label = "final",
                     scale = "Landscape (gamma)",
-                    richness_value = .x$gamma
+                    mean_richness = .x$gamma
                 )
             }
         )
 )
 
 # Combine alpha and gamma
-sr_combined <- bind_rows(alpha_tidy, gamma_tidy) %>%
+div_combined <- bind_rows(alpha_tidy, gamma_tidy) %>%
     mutate(
         fragmentation = factor(
             fragmentation, 
@@ -271,14 +315,14 @@ gg_dd <- ggplot(dd_summary,
     facet_wrap(~ step_label) +
     scale_color_manual(values = pal) +
     scale_fill_manual(values = pal) +
-    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Dissimilarity)", tag = "A") +
+    labs(x = "Euclidean Distance", y = "Similarity (1 - Bray-Curtis-Dissimilarity)", tag = "A") +
     theme_bw(base_size = 14) +
     theme(legend.position = "bottom")
 
-# Plot species richness with violin plots
-gg_sr <- ggplot(sr_combined, 
-                aes(x = fragmentation, y = richness_value, color = fragmentation, fill = fragmentation)) +
-    geom_violin(alpha = 0.5) +
+# Plot species richness with boxplots
+gg_sr <- ggplot(div_combined, 
+                aes(x = fragmentation, y = mean_richness, color = fragmentation, fill = fragmentation)) +
+    geom_boxplot(alpha = 0.5) +
     geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
     facet_grid(scale ~ step_label, scales = "free_y") +
     scale_color_manual(values = pal) +

@@ -105,7 +105,7 @@ vp_switch <- data.frame(
   hab = 0,
   nb = 0,
   disp = 0,
-  disp_dist = 0,
+  disp_dist = 1,
   edge = 0
 )
 # Creating a table of varying parameter values using expand.grid() for the multiple runs function.

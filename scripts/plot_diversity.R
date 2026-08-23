@@ -11,17 +11,19 @@ library(vegan)
 
 source("R/sim_select.R")
 
-# Select simulation and get path for full sample file
-paths <- sim_select(sampled = "all")
-
-# Read in data
-data_list <- map(here(paths), fread)
-
 # Steps to analyse
 steps <- c("post_fragmentation", "final")
 
 # Fragmentation levels
 frag_levels <- c("low" = 0.2, "medium" = 0.5, "high" = 0.8)
+
+# Core series ------------------------------------------------------------
+
+# Select simulation and get path for full sample file
+paths <- sim_select(sampled = "all")
+
+# Read in data
+data_list <- map(here(paths), fread)
 
 # Distance-decay results
 # dd_results <- vector(mode = "list", length = length(steps))
@@ -198,3 +200,84 @@ ggplot(diversity, aes(x = fragmentation, y = value, color = fragmentation)) +
     theme_bw(base_size = 14) +
     scale_color_manual(values = pal) +
     theme(legend.position = "none")
+
+
+# dispersal distance -----------------------------------------------------
+
+# Select simulations with varying dispersal distances
+paths <- sim_select(dispersal_dist != 2, sampled = "all")
+
+# Read in data
+data_list <- map(here(paths), fread)
+
+# Dispersal distances
+dispersal_dists <- c("short" = 1, "medium" = 4, "long" = 8)
+
+# Initialize list to store diversity results
+div_list <- vector(mode = "list", length = length(data_list))
+
+for (i in seq_along(data_list)) {
+
+  # Get current data and filter out rows with NA species_id
+  data <- data_list[[i]] |> 
+    filter(!is.na(species_id))
+
+  # Diversity results
+  div_results <- vector(mode = "list", length = length(steps))
+
+  # For each step, filter and calculate alpha and gamma diversity
+  for (j in seq_along(steps)) {
+
+    # Filter for current step
+    subset <- data |> 
+      dplyr::filter(step_label == steps[j])
+
+    # Assess species richness
+    gamma <- tibble(
+      scale = factor("landscape", levels = c("sample", "landscape")),
+      richness = length(unique(subset[["species_id"]]))
+    )
+    alpha <- subset |> 
+      group_by(sample_id) |> 
+      summarise(richness = n_distinct(species_id)) |> 
+      summarise(richness = mean(richness, na.rm = TRUE)) |> 
+      mutate(scale = factor("sample", levels = c("sample", "landscape"))) |> 
+      select(scale, richness)
+    
+    div_results[[j]] <- bind_rows(alpha, gamma) |>
+      mutate(
+        step_label = steps[j],
+        sim_id = subset[["sim_id"]][1],
+        fragmentation = factor(subset[["fragmentation"]][1], levels = frag_levels, labels = names(frag_levels)),
+        dispersal_dist = factor(subset[["disp_dist"]][1], levels = dispersal_dists, labels = names(dispersal_dists)),
+        step_label = factor(step_label, levels = steps, labels = c("Post-fragmentation", "End of simulation"))
+      ) |> 
+        select(sim_id, step_label, scale, fragmentation, dispersal_dist, richness)
+
+  }
+
+  div_list[[i]] <- bind_rows(div_results)
+
+}
+
+diversity <- bind_rows(div_list) %>% 
+  group_by(step_label, scale, fragmentation, dispersal_dist) %>% 
+  summarise(
+    S_low = quantile(richness, probs = 0.025),
+    S_high = quantile(richness, probs = 0.975),
+    richness = mean(richness),
+  ) %>% 
+  ungroup()
+
+ggplot(diversity, aes(x = fragmentation, y = richness, color = step_label)) +
+  geom_pointrange(aes(ymin = S_low, ymax = S_high)) +
+  # geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
+  facet_grid(scale ~ dispersal_dist, scales = "free_y") +
+  labs(x = "Level of Fragmentation", y = "Species richness") +
+  theme_bw(base_size = 14) +
+  scale_color_manual(values = pal) +
+  theme(legend.position = "none")
+
+
+
+

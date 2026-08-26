@@ -34,7 +34,7 @@ source(here("R/sample_cells.R"))
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) {
-  stop("Usage: Rscript sim_pipeline.R <task_id> <job_id>")
+  stop("Usage: Rscript sim_array.R <task_id> <job_id>")
 }
 
 task_id <- as.integer(args[1])

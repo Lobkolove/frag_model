@@ -33,12 +33,13 @@ source(here("R/sample_cells.R"))
 
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2) {
-  stop("Usage: Rscript sim_array.R <task_id> <job_id>")
+if (length(args) < 3) {
+  stop("Usage: Rscript sim_array.R <task_id> <job_id> <last_sim_id>")
 }
 
 task_id <- as.integer(args[1])
 job_id <- as.numeric(args[2])
+last_sim_id <- as.integer(args[3])
 
 # Paths
 log_file <- here("output", "simulations_log.csv")
@@ -91,7 +92,7 @@ spacer <- 0L
 # Define a unique identifier for this simulation run (sim_id)
 if (to_log) {
   # Last used sim_id is determined from the log file, and the next sim_id is assigned.
-  sim_id <- unique_sim_id(log_file = log_file, increment = as.integer(task_id + spacer))
+  sim_id <- last_sim_id + task_id + spacer
 } else {
   # If not logging, we can just use the task_id as sim_id
   sim_id <- task_id

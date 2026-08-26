@@ -16,4 +16,6 @@
 module add R
 module add GDAL
 
-Rscript "sim_array.R" ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_JOB_ID}
+last_sim_id=$(Rscript "last_sim_id.R" "../output/simulations_log.csv")
+
+Rscript "sim_array.R" ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_JOB_ID} ${last_sim_id}

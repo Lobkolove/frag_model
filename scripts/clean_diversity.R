@@ -493,3 +493,149 @@ gg_dispersal_combined <- free(gg_dd_dispersal, side = "l") / free(gg_div_dispers
   plot_annotation(tag_levels = "A") &
   theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
 gg_dispersal_combined
+
+ggsave(
+  gg_dispersal_combined,
+  file = here("pics/dispersal_combined_aligned.png"),
+  width = 10,
+  height = 10,
+  dpi = 300
+)
+
+
+# 4. Environmental autocorrelation series ---------------------------------------------------------
+
+# IDs
+ac_ids <- sim_ids(ac_amount %in% c(0, 0.5, 1))
+
+# Check master seeds for duplicates
+ac_seeds <- log %>%
+  dplyr::filter(sim_id %in% ac_ids) %>%
+  dplyr::pull(master_seed)
+sum(duplicated(ac_seeds))
+# 18 duplicated seeds, removing duplicates and keeping only the first occurrence of each seed
+ac_ids <- ac_ids[!duplicated(ac_seeds)]
+
+# Get paths for full samples
+paths_ac <- sim_select(sim_id %in% ac_ids, sampled = "all")
+
+# Read in data
+data_ac <- map(here(paths_ac), fread)
+
+# Filter to only include post-fragmentation and final steps
+data_ac <- map(data_ac, ~ dplyr::filter(.x, step_label %in% c("post_fragmentation", "final")))
+
+  ## 4.1 Distance decay ---------------------------------------------------------
+
+# Compute distance decay for each dataset in the environmental autocorrelation series
+dd_ac <- purrr::map(
+  seq_along(data_ac),
+  \(i) {
+
+    tryCatch(
+      grouped_ddecay(
+        model_sample = data_ac[[i]],
+        group_cols = c(
+          "fragmentation",
+          "ac_amount",
+          "step_label"
+        ),
+        distvec = seq(0, 25, length.out = 200)
+      ),
+      error = function(e) {
+
+        message(
+          "Skipping dataset ", i, ": ",
+          conditionMessage(e)
+        )
+
+        NULL
+      }
+    )
+  }
+)
+# No datasets were skipped
+
+# Merge results into a single data frame
+dd_ac_merged <- bind_rows(dd_ac) |>
+  dplyr::group_by(fragmentation, ac_amount, step_label, distance) |>
+  dplyr::summarise(
+    simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+    simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+    similarity = mean(similarity, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  dplyr::mutate(
+    fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), labels = c("Low", "Medium", "High")),
+    ac_amount = factor(ac_amount, levels = c(0, 0.5, 1), labels = c("No autocorrelation", "Medium autocorrelation", "High autocorrelation")),
+    step_label = factor(step_label, levels = c("post_fragmentation", "final"), labels = c("Post-fragmentation", "End of simulation"))
+  )
+
+# Plot distance decay curves for environmental autocorrelation series
+gg_dd_ac <- ggplot(dd_ac_merged, aes(x = distance, y = similarity, color = fragmentation)) +
+  geom_line(linewidth = 1.2) +
+  geom_ribbon(aes(ymin = simi_low, ymax = simi_high, fill = fragmentation), alpha = 0.2, color = NA) +
+  facet_grid2(step_label ~ ac_amount, scales = "free_y") +
+  labs(
+    x = "Euclidean Distance",
+    y = "Similarity (1 - Bray-Curtis dissimilarity)",
+    color = "Level of\nfragmentation",
+    fill = "Level of\nfragmentation"
+  ) +
+  scale_color_manual(values = pal_frag) +
+  scale_fill_manual(values = pal_frag)
+gg_dd_ac
+
+  ## 4.2 Diversity indices ---------------------------------------------------------
+
+# Compute diversity indices for each dataset in the environmental autocorrelation series
+div_ac <- map(data_ac, ~ compute_diversity(data = .x, metadata_cols = "ac_amount"))
+
+# Merge results into a single data frame
+div_ac <- bind_rows(div_ac)
+
+# Create summary data frame for plotting
+div_ac_summary <- div_ac |>
+  filter(index == "richness") |>
+  group_by(step_label, scale, fragmentation, ac_amount) |>
+  summarise(
+    richness = mean(value, na.rm = TRUE),
+    S_low = quantile(value, probs = 0.025, na.rm = TRUE),
+    S_high = quantile(value, probs = 0.975, na.rm = TRUE),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    ac_amount = factor(ac_amount, levels = c(0, 0.5, 1), labels = c("No autocorrelation", "Medium autocorrelation", "High autocorrelation")),
+  )
+
+# Pointrange plot for environmental autocorrelation series, with geodem by color and facet grid by scale and ac_amount
+gg_div_ac <- ggplot(div_ac_summary, aes(x = fragmentation, y = richness, color = step_label)) +
+  geom_pointrange(aes(ymin = S_low, ymax = S_high), alpha = 0.85) +
+  facet_grid2(scale ~ ac_amount, scales = "free_y") +
+  labs(x = "Level of fragmentation", y = "Species richness", color = "Time step") +
+  scale_color_manual(values = pal_geodem)
+gg_div_ac
+
+  ## 4.3 Combined plots for environmental autocorrelation series -----
+
+gg_ac_combined <- free(gg_dd_ac, side = "l") / free(gg_div_ac, side = "l") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
+gg_ac_combined
+
+ggsave(
+  gg_ac_combined,
+  file = here("pics/ac_combined_aligned.png"),
+  width = 10,
+  height = 10,
+  dpi = 300
+)
+
+
+# 5. Random habitat dispersal series ---------------------------------------------------------^
+
+# IDs
+
+
+
+

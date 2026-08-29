@@ -10,6 +10,8 @@ library(purrr)
 library(vegan)
 
 source("R/sim_select.R")
+source("R/compute_diversity.R")
+theme_set(theme_bw(base_size = 14))
 
 # Steps to analyse
 steps <- c("post_fragmentation", "final")
@@ -17,24 +19,26 @@ steps <- c("post_fragmentation", "final")
 # Fragmentation levels
 frag_levels <- c("low" = 0.2, "medium" = 0.5, "high" = 0.8)
 
+
 # Core series ------------------------------------------------------------
 
 # Select simulation and get path for full sample file
-paths <- sim_select(sampled = "all")
+paths_core_full <- sim_select(sampled = "all")
 
 # Read in data
-data_list <- map(here(paths), fread)
+data_core_full <- map(here(paths_core_full), fread)
 
 # Distance-decay results
 # dd_results <- vector(mode = "list", length = length(steps))
 
-div_list <- vector(mode = "list", length = length(data_list))
+div_core_test <- map(data_core_full, ~ compute_diversity(data = .x))
 
+div_core_full <- vector(mode = "list", length = length(data_core_full))
 # For each dataset:
-for (i in seq_along(data_list)) {
+for (i in seq_along(data_core_full)) {
 
   # Get current data and filter out rows with NA species_id
-  data <- data_list[[i]] |> 
+  data <- data_core_full[[i]] |> 
     filter(!is.na(species_id))
 
   # Diversity results
@@ -86,7 +90,7 @@ for (i in seq_along(data_list)) {
       mutate(
         hill_shannon = as.numeric(renyi(colSums(spec_table), scales = 2, hill = TRUE)),
         hill_simpson = as.numeric(renyi(colSums(spec_table), scales = 3, hill = TRUE)),
-        evenness = log(hill_shannon) / log(richness)
+        evenness = hill_shannon / richness
       )
     
     # Store diversity results
@@ -103,18 +107,18 @@ for (i in seq_along(data_list)) {
   }
 
   # Merge and store results for this simulation (all steps)
-  div_list[[i]] <- bind_rows(div_results)
+  div_core_full[[i]] <- bind_rows(div_results)
 
 }
 
-diversity <- bind_rows(div_list)
+diversity <- bind_rows(div_core_full)
 
 # Plots
 
 # Option 1: Boxplots for each diversity index, faceted by step and scale
 div_plots <- vector(mode = "list", length = length(unique(diversity$index)))
 names(div_plots) <- c("Species richness", "Hill Shannon", "Hill Simpson", "Evenness")
-pal <- c("#332288", "#DDCC77", "#CC6677")
+pal <- c("#332288", "#89a0c4", "#CC6677")
 
 for (i in seq_along(div_plots)) {
 
@@ -192,14 +196,34 @@ div_plots2_combined <- wrap_plots(div_plots2, ncol = 1, axes = "collect_x")
 div_plots2_combined
 
 
-ggplot(diversity, aes(x = fragmentation, y = value, color = fragmentation)) +
-    geom_boxplot() +
-    geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
-    facet_grid2(index + scale ~ step_label, scales = "free_y", independent = "y") +
-    labs(x = "Level of Fragmentation", y = names(div_plots2)[i]) +
-    theme_bw(base_size = 14) +
-    scale_color_manual(values = pal) +
-    theme(legend.position = "none")
+# Option 3: timestep as color, scale as facets
+
+div_summary <- diversity |> 
+  group_by(step_label, scale, fragmentation, index) |> 
+  summarise(
+    mean = mean(value, na.rm = TRUE),
+    q_low = quantile(value, probs = 0.025, na.rm = TRUE),
+    q_high = quantile(value, probs = 0.975, na.rm = TRUE),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    index = factor(index, levels = c("richness", "hill_shannon", "hill_simpson", "evenness"), 
+                        labels = c("Species richness", "Hill Shannon", "Hill Simpson", "Evenness")),
+    scale = factor(scale, levels = c("sample", "landscape"), labels = c("Sample scale", "Landscape scale"))
+  )
+
+gg_div_full_merged <- ggplot(div_summary, aes(fragmentation, mean, color = step_label)) +
+  geom_pointrange(aes(ymin = q_low, ymax = q_high), alpha = 0.85) +
+  facet_grid2(scale ~ index, scales = "free_y", independent = "y") +
+  labs(title = "All habitat cells", x = "Level of Fragmentation", y = "Index value", color = "Time step") +
+  scale_color_manual(values = pal[c(1,3)]) +
+  theme(legend.position = "bottom")
+gg_div_full_merged
+
+ggsave(gg_div_full_merged, filename = here("pics", "diversity_merged_fullsamp.png"), width = 10, height = 8, dpi = 300)
+
+# Random sampling
+
 
 
 # dispersal distance -----------------------------------------------------

@@ -506,7 +506,7 @@ ggsave(
 # 4. Environmental autocorrelation series ---------------------------------------------------------
 
 # IDs
-ac_ids <- sim_ids(ac_amount %in% c(0, 0.5, 1))
+ac_ids <- sim_ids(ac_amount %in% c(0, 0.5, 1), dispersal_type == "short_long")
 
 # Check master seeds for duplicates
 ac_seeds <- log %>%
@@ -635,7 +635,105 @@ ggsave(
 # 5. Random habitat dispersal series ---------------------------------------------------------^
 
 # IDs
+random_ids <- sim_ids(dispersal_type == "random", ac_amount == 0.7)
 
+# Check master seeds for duplicates
+random_seeds <- log %>%
+  dplyr::filter(sim_id %in% random_ids) %>%
+  dplyr::pull(master_seed)
+sum(duplicated(random_seeds))
+# No seed duplicates, ready for analysis!
 
+# Get paths for full samples
+paths_random <- sim_select(sim_id %in% random_ids, sampled = "all")
 
+# Read in data
+data_random <- map(here(paths_random), fread)
 
+# Filter to only include post-fragmentation and final steps
+data_random <- map(data_random, ~ .x %>% filter(step_label %in% c("post_fragmentation", "final")))
+
+# Compute distance decay for each dataset in the random habitat dispersal series
+dd_random <- purrr::map(
+  seq_along(data_random),
+  \(i) {
+
+    tryCatch(
+      grouped_ddecay(
+        model_sample = data_random[[i]],
+        group_cols = c(
+          "fragmentation",
+          "step_label"
+        ),
+        distvec = seq(0, 25, length.out = 200)
+      ),
+      error = function(e) {
+
+        message(
+          "Skipping dataset ", i, ": ",
+          conditionMessage(e)
+        )
+
+        NULL
+      }
+    )
+  }
+)
+skipped_datasets_random <- which(
+  purrr::map_lgl(dd_random, is.null)
+)
+# No datasets were skipped
+
+# Merge results into a single data frame
+dd_random_merged <- bind_rows(dd_random) |>
+  dplyr::group_by(fragmentation, step_label, distance) |>
+  dplyr::summarise(
+    simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+    simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+    similarity = mean(similarity, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  dplyr::mutate(
+    fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), labels = c("Low", "Medium", "High")),
+    step_label = factor(step_label, levels = c("post_fragmentation", "final"), labels = c("Post-fragmentation", "End of simulation"))
+  )
+
+# Plot distance decay curves for random habitat dispersal series
+gg_dd_random <- ggplot(dd_random_merged, aes(x = distance, y = similarity, color = fragmentation)) +
+  geom_line(linewidth = 1.2) +
+  geom_ribbon(aes(ymin = simi_low, ymax = simi_high, fill = fragmentation), alpha = 0.2, color = NA) +
+  facet_wrap(~ step_label, scales = "free_y") +
+  labs(
+    x = "Euclidean Distance",
+    y = "Similarity (1 - Bray-Curtis dissimilarity)",
+    color = "Level of\nfragmentation",
+    fill = "Level of\nfragmentation"
+  ) +
+  scale_color_manual(values = pal_frag) +
+  scale_fill_manual(values = pal_frag)
+gg_dd_random
+
+# Compute diversity indices for each dataset in the random habitat dispersal series
+div_random <- map(data_random, ~ compute_diversity(data = .x))
+
+# Merge results into a single data frame
+div_random <- bind_rows(div_random)
+
+# Create summary data frame for plotting
+div_random_summary <- div_random |>
+  filter(index == "richness") |>
+  group_by(step_label, scale, fragmentation) |>
+  summarise(
+    richness = mean(value, na.rm = TRUE),
+    S_low = quantile(value, probs = 0.025, na.rm = TRUE),
+    S_high = quantile(value, probs = 0.975, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Pointrange plot for random habitat dispersal series, with geodem by color and facet grid by scale
+gg_div_random <- ggplot(div_random_summary, aes(x = fragmentation, y = richness, color = step_label)) +
+  geom_pointrange(aes(ymin = S_low, ymax = S_high), alpha = 0.85) +
+  facet_grid2(scale ~ ., scales = "free_y") +
+  labs(x = "Level of fragmentation", y = "Species richness", color = "Time step") +
+  scale_color_manual(values = pal_geodem)
+gg_div_random

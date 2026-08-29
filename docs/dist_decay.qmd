@@ -65,7 +65,7 @@ source(here("R", "sim_select.R"))
 source(here("R", "dist_decay.R"))
 
 # All simulations with only fragmentation as variable parameter, checkerboard sampling design
-paths <- sim_select(sim_id <= 75, sampled = "checkerboard")
+paths <- sim_select(sim_id <= 60, sampled = "checkerboard")
 data_list <- purrr::map(here(paths), fread)
 
 # Convert to wide format for distance decay analysis
@@ -101,6 +101,7 @@ for (i in seq_along(data_wide)) {
 
     dd_results$post_frag[[i]] <- dist_decay(
         post_frag,
+        input_format = "wide",
         dist_type = "euclidean",
         method = "jaccard",
         distvec = seq(0, 25, length.out = 200)
@@ -114,6 +115,7 @@ for (i in seq_along(data_wide)) {
 
     dd_results$final[[i]] <- dist_decay(
         final,
+        input_format = "wide",
         dist_type = "euclidean",
         method = "bray",
         distvec = seq(0, 25, length.out = 200)

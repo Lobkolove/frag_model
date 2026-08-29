@@ -153,7 +153,7 @@ birth <- function(
           ### long dispersal###
           # generate location and calculate survival prob.
           new_loc_long <- random_disperse(
-            grid,
+            grid = grid,
             force_habitat = FALSE
           )
 

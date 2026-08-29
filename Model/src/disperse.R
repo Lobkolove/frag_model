@@ -101,7 +101,7 @@ random_disperse <- function(
     if (is.null(habitat_cells)) {
       habitat_cells <- which(!is.na(raster::getValues(grid)))
     }
-    destination <- sample(habitat_cells, 1)
+    destination <- habitat_cells[sample.int(length(habitat_cells), 1)]
     new_loc <- c(ceiling(destination / ncol), (destination - 1) %% ncol + 1)
   } else {
     new_loc <- c(sample(nrow, 1), sample(ncol, 1))

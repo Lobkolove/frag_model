@@ -1,0 +1,11 @@
+# Not a git ignore file. Read by tools built on Rust's `ignore` crate, which
+# includes Ark, the R language server behind Positron.
+#
+# Ark's workspace indexer panics with a salsa dependency-graph cycle on this
+# repo. That kills the language server, which (among other things) makes
+# Cmd+Enter execute single lines instead of whole statements, because the
+# statement-range provider it backs disappears.
+#
+# The files below are the ones that source() another file in their OWN
+# directory, which is the edge the cycle appears to need.
+R/generate_figures.R

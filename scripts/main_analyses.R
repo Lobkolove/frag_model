@@ -97,6 +97,57 @@ gg_dd_core_full <- ggplot(
   theme(legend.position = "bottom")
 gg_dd_core_full
 
+      #### 1.1.1.2 Presence-absence -----
+
+# Compute distance decay for each dataset in the core series with `binary = TRUE`
+dd_core_sor <- map(
+  data_core_full, 
+  ~ grouped_ddecay(
+    model_sample = .x,
+    binary = TRUE,
+    distvec = seq(0, 25, length.out = 200)
+  )
+)
+
+# Merge results into a single data frame
+dd_sor_merged <- bind_rows(dd_core_sor) |>
+  dplyr::group_by(fragmentation, step_label, distance) |>
+  dplyr::summarise(
+    simi_low = quantile(similarity, 0.025, na.rm = TRUE),
+    simi_high = quantile(similarity, 0.975, na.rm = TRUE),
+    similarity = mean(similarity, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  dplyr::mutate(
+    fragmentation = factor(fragmentation, levels = c(0.2, 0.5, 0.8), labels = c("Low", "Medium", "High")),
+    step_label = factor(step_label, levels = c("post_fragmentation", "final"), labels = c("Post-fragmentation", "End of simulation"))
+  )
+
+# Plot distance decay curves for presence-absence data
+gg_dd_sor <- ggplot(
+  dd_sor_merged,
+  aes(distance, similarity, color = fragmentation, fill = fragmentation)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_ribbon(
+    aes(ymin = simi_low, ymax = simi_high, fill = fragmentation),
+    alpha = 0.2,
+    color = NA
+  ) +
+  facet_wrap(~step_label) +
+  labs(
+    x = "Euclidean Distance",
+    y = "Similarity (1 - Sørensen dissimilarity)",
+    color = "Level of Fragmentation",
+    fill = "Level of Fragmentation"
+  ) +
+  scale_color_manual(values = pal_frag) +
+  scale_fill_manual(values = pal_frag) +
+  theme(legend.position = "bottom")
+gg_dd_sor
+
+ggsave(gg_dd_sor, file = here("pics/dd_sor.png"), width = 10, height = 6, dpi = 300)
+
     ### 1.1.2 Diversity indices -----
   
 # Compute diversity indices for each dataset in the core series

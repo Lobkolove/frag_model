@@ -10,7 +10,7 @@ gr_size <- 50
 ac_amount <- 0.5
 
 # Unique identifier (change for new images)
-id <- 81
+id <- 151
 
 # Single full landscape ---------------------------------------------------------
 
@@ -230,74 +230,67 @@ dev.off()
 # Distribution of environmental values -----------------------------------
 
 # Average histogram of cell values across many replicate landscapes, for the
-# same levels of autocorrelation as in the multiple-landscapes figure.
-# Values are rescaled to [0, 1] within each landscape by fbm_fft().
+# same levels of autocorrelation as in the multiple-landscapes figure, shown as
+# one panel per level. Values are rescaled to [0, 1] within each landscape by
+# fbm_fft().
 
-annotations <- c("A", "B", "C")
-ac_amounts <- c(1, 0.5, 0)
-n_reps <- 50
+ac_amounts <- c(0, 0.5, 1)
+n_reps <- 500
 
 breaks <- seq(0, 1, length.out = 41)
 mids <- breaks[-length(breaks)] + diff(breaks) / 2
 
-# One replicate landscape -> density per bin
-rep_density <- function(ac, seed) {
+# One replicate landscape -> proportion of cells per bin
+rep_proportion <- function(ac, seed) {
       ls_rep <- fbm_fft(gr_size = gr_size, ac_amount = ac, raster = FALSE, seed = seed)
-      hist(ls_rep, breaks = breaks, plot = FALSE)$density
+      h <- hist(ls_rep, breaks = breaks, plot = FALSE)
+      h$counts / sum(h$counts)
 }
 
 # Replicates share seeds across ac levels, so each level sees the same set of
 # noise realisations and only the spectral filtering differs
-dens_mean <- matrix(NA_real_, nrow = length(mids), ncol = length(ac_amounts))
-dens_sd   <- matrix(NA_real_, nrow = length(mids), ncol = length(ac_amounts))
+prop_df <- do.call(rbind, lapply(ac_amounts, function(ac) {
+      reps <- sapply(seq_len(n_reps), function(r) rep_proportion(ac, seed = id * 1000 + r))
+      data.frame(
+            ac   = ac,
+            xmin = breaks[-length(breaks)],
+            xmax = breaks[-1],
+            mid  = mids,
+            mean = rowMeans(reps),
+            sd   = apply(reps, 1, sd)
+      )
+}))
 
-for (j in seq_along(ac_amounts)) {
-      reps <- sapply(seq_len(n_reps), function(r) rep_density(ac_amounts[j], seed = id * 1000 + r))
-      dens_mean[, j] <- rowMeans(reps)
-      dens_sd[, j]   <- apply(reps, 1, sd)
-}
+# Keep the panels in the order of ac_amounts
+prop_df$ac <- factor(prop_df$ac, levels = ac_amounts)
 
-ymax <- max(dens_mean + dens_sd)
-
-# Export to file (uncomment to write the figure)
-filename <- paste0("pics/fbm_value_distributions_", id, ".png")
-png(filename, width = 1200, height = 800)
-
-par(
-      mfrow = c(1, 3),
-      mar   = c(4, 4, 3, 1),   # same for all panels
-      oma   = c(0.1, 2, 2, 2)    # extra outer margins: bottom, left, top, right
-)
-
-for (j in seq_along(ac_amounts)) {
-      
-      plot(NA, xlim = c(0, 1), ylim = c(0, ymax),
-           xlab = "Environmental value", ylab = "Density",
-           las = 1, cex.lab = 1.4, cex.axis = 1.2)
-      
+p_prop <- ggplot(prop_df) +
       # Mean histogram across replicates
-      rect(breaks[-length(breaks)], 0, breaks[-1], dens_mean[, j],
-           col = viridis(length(ac_amounts))[j], border = "white")
-      
+      geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = mean, fill = ac),
+                colour = "white", linewidth = 0.3) +
       # Variability across replicates
-      segments(mids, pmax(dens_mean[, j] - dens_sd[, j], 0),
-               mids, dens_mean[, j] + dens_sd[, j],
-               col = "grey30", lwd = 1)
-      
-      # Add bold subplot label above the plot, left-aligned
-      mtext(
-            annotations[j],
-            side = 3, line = 1, adj = 0.05, cex = 2, font = 2
+      geom_linerange(aes(x = mid, ymin = pmax(mean - sd, 0), ymax = mean + sd),
+                     colour = "grey30", linewidth = 0.4) +
+      facet_wrap(
+            ~ ac, nrow = 1,
+            labeller = labeller(ac = function(x) paste0("Environmental autocorrelation: ", x))
+      ) +
+      scale_fill_viridis_d(guide = "none") +
+      scale_x_continuous(breaks = c(0, 0.5, 1), expand = expansion(mult = 0.01)) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+      labs(x = "Environmental value", y = "Proportion of cells") +
+      theme_bw(base_size = 13) +
+      theme(
+            panel.grid       = element_blank(),
+            panel.spacing    = unit(1.5, "lines"),   # keeps neighbouring axis labels apart
+            # strip.background = element_blank(),
+            strip.text       = element_text(size = 12, hjust = 0)
       )
-      
-      # Report the level of autocorrelation shown
-      mtext(
-            bquote(ac == .(ac_amounts[j])),
-            side = 3, line = 1, adj = 0.95, cex = 1.2
-      )
-}
+p_prop
 
-dev.off()
+# Export to file
+filename <- paste0("pics/ac_value_distributions_", id, "_", n_reps, ".png")
+ggsave(p_prop, filename = filename, width = 10, height = 6, units = "in", dpi = 300)
 
 
 # Animated landscape series ----------------------------------------------

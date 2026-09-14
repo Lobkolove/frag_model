@@ -180,13 +180,13 @@ gg_div_core_full_merged
 
     ### 1.1.3 Combined plots -----
 
-gg_core_combined <- (gg_dd_core_full / free(gg_div_core_full_merged)) +
+gg_core_combined <- (free(gg_div_core_full_merged) / gg_dd_core_full) +
   plot_layout(heights = c(1, 1.5)) &
-  plot_annotation(title = "All habitat cells", tag_levels = "A") &
+  plot_annotation(title = "All habitat cells", tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 14))
 gg_core_combined
 
-ggsave(gg_core_combined, file = here("pics/core_combined.png"), width = 10, height = 10, dpi = 300)
+ggsave(gg_core_combined, file = here("pics/core_combined2.png"), width = 10, height = 10, dpi = 300)
 
   ## 1.2 Random samples -------------------------------------------------------------
 
@@ -274,33 +274,17 @@ gg_div_core_random_merged <- ggplot(div_core_random_summary, aes(fragmentation, 
   theme(legend.position = "bottom")
 gg_div_core_random_merged
 
-# Combine the two plots into a single figure with patchwork, adding plot annotations (A and B)
-# and only one x axis label for the combined figure
-gg_div_core_random_combined <- (gg_div_core_full_merged / gg_div_core_random_merged) +
-  plot_layout(axis_titles = "collect_x") &
-  plot_annotation(tag_levels = "A") &
-  theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "bottom")
-gg_div_core_random_combined
-
-ggsave(
-  gg_div_core_random_combined,
-  file = here("pics/diversity_core_random_combined.png"),
-  width = 10,
-  height = 8,
-  dpi = 300
-)
-
     ### 1.2.3 Combined plots for random samples -----
 
-gg_core_random_combined <- (gg_dd_core_random / free(gg_div_core_random_merged)) +
+gg_core_random_combined <- (gg_div_core_random_merged / free(gg_dd_core_random)) +
   plot_layout(heights = c(1, 1.5)) &
-  plot_annotation(title = "30 random habitat cells", tag_levels = "A") &
+  plot_annotation(title = "30 random habitat cells", tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 14))
 gg_core_random_combined
 
 ggsave(
   gg_core_random_combined,
-  file = here("pics/core_random_combined.png"),
+  file = here("pics/core_random_combined2.png"),
   width = 10,
   height = 10,
   dpi = 300
@@ -402,15 +386,15 @@ gg_div_hab
 
   ## 2.3 Combined plots for habitat amount series -----
 
-gg_hab_combined <- free(gg_dd_hab, side = "l") / free(gg_div_hab, side = "l") +
+gg_hab_combined <- free(gg_div_hab, side = "l") / free(gg_dd_hab, side = "l") +
   # plot_layout(guides = "keep") &
-  plot_annotation(tag_levels = "A") &
+  plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
 gg_hab_combined  
 
 ggsave(
   gg_hab_combined,
-  file = here("pics/habitat_combined_aligned.png"),
+  file = here("pics/habitat_combined_aligned2.png"),
   width = 10,
   height = 10,
   dpi = 300
@@ -475,8 +459,12 @@ skipped_datasets <- which(
 n_skipped <- length(skipped_datasets)
 
 # One dataset was skipped due to an error in the distance decay computation.
-# The skipped dataset is 54, so we will exclude the whole replicate (sims 46-54) from the analysis.
-dd_dispersal[46:54] <- NULL
+# The skipped dataset is 54 (replicate 006, sim 0204: 8 cells / high fragmentation), so we exclude
+# the whole replicate (datasets 46-54, sims 0196-0204) from the distance decay AND the diversity
+# indices below, so that both analyses are based on the same 10 replicates.
+excluded_dispersal <- 46:54
+dd_dispersal[excluded_dispersal] <- NULL
+dispersal_data[excluded_dispersal] <- NULL
 
 # Merge results into a single data frame
 dd_dispersal_merged <- bind_rows(dd_dispersal) |>
@@ -511,6 +499,7 @@ gg_dd_dispersal
   ## 3.2 Diversity indices ---------------------------------------------------------
 
 # Compute diversity indices for each dataset in the dispersal distance series
+# (`dispersal_data` no longer contains the excluded replicate, see 3.1)
 div_dispersal <- map(dispersal_data, ~ compute_diversity(data = .x, metadata_cols = "disp_dist"))
 
 # Merge results into a single data frame
@@ -540,14 +529,14 @@ gg_div_dispersal
 
   ## 3.3 Combined plots for dispersal distance series -----
 
-gg_dispersal_combined <- free(gg_dd_dispersal, side = "l") / free(gg_div_dispersal, side = "l") +
-  plot_annotation(tag_levels = "A") &
+gg_dispersal_combined <- free(gg_div_dispersal, side = "l") / free(gg_dd_dispersal, side = "l") +
+  plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
 gg_dispersal_combined
 
 ggsave(
   gg_dispersal_combined,
-  file = here("pics/dispersal_combined_aligned.png"),
+  file = here("pics/dispersal_combined_aligned2.png"),
   width = 10,
   height = 10,
   dpi = 300
@@ -669,21 +658,21 @@ gg_div_ac
 
   ## 4.3 Combined plots for environmental autocorrelation series -----
 
-gg_ac_combined <- free(gg_dd_ac, side = "l") / free(gg_div_ac, side = "l") +
-  plot_annotation(tag_levels = "A") &
+gg_ac_combined <- free(gg_div_ac, side = "l") / free(gg_dd_ac, side = "l") +
+  plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
 gg_ac_combined
 
 ggsave(
   gg_ac_combined,
-  file = here("pics/ac_combined_aligned.png"),
+  file = here("pics/ac_combined_aligned2.png"),
   width = 10,
   height = 10,
   dpi = 300
 )
 
 
-# 5. Random habitat dispersal series ---------------------------------------------------------^
+# 5. Random habitat dispersal series ---------------------------------------------------------
 
 # IDs
 random_ids <- sim_ids(dispersal_type == "random", ac_amount == 0.7)

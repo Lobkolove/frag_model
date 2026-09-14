@@ -126,7 +126,7 @@ plot_trend <- function(trends, var = c("N", "SR"), log_y = FALSE, show_replicate
     labs(
       x = "Time step",
       y = y_lab,
-      colour = "Level of\nfragmentation"
+      colour = "Level of fragmentation"
     )
 
   if (log_y) {
@@ -180,59 +180,55 @@ plot_pre_frag_spread <- function(trends, bins = 14) {
     labs(
       x = "Number of individuals before fragmentation (log scale)",
       y = "Replicates",
-      fill = "Level of\nfragmentation"
+      fill = "Level of fragmentation"
     )
 }
 
 
-# Output ----------------------------------------------------------------------
+# Run --------------------------------------------------------------------------
 
-if (sys.nframe() == 0L) {
+log <- fread(here("output/simulations_log.csv"))
+target <- log[dispersal_type == "random" & ac_amount == 0.7, as.integer(sim_id)]
+cat("Random-dispersal series, ac = 0.7 -", length(target), "simulations\n")
 
-  log <- fread(here("output/simulations_log.csv"))
-  target <- log[dispersal_type == "random" & ac_amount == 0.7, as.integer(sim_id)]
-  cat("Random-dispersal series, ac = 0.7 -", length(target), "simulations\n")
+trends <- collect_trends(target)
 
-  trends <- collect_trends(target)
 
-  gg_n <- plot_trend(trends, "N")
-  gg_sr <- plot_trend(trends, "SR")
-  gg_n_log <- plot_trend(trends, "N", log_y = TRUE)
-  gg_sr_log <- plot_trend(trends, "SR", log_y = TRUE)
+# Summaries --------------------------------------------------------------------
 
-  ggsave(here("pics/random_trends_N.png"), gg_n, width = 7, height = 5, dpi = 300)
-  ggsave(here("pics/random_trends_SR.png"), gg_sr, width = 7, height = 5, dpi = 300)
-  ggsave(here("pics/random_trends_N_log.png"), gg_n_log, width = 7, height = 5, dpi = 300)
-  ggsave(here("pics/random_trends_SR_log.png"), gg_sr_log, width = 7, height = 5, dpi = 300)
+pre <- trends[step_label == "pre_fragmentation"]
+cat("\nPre-fragmentation population size, all replicates:\n")
+print(sort(pre$N))
+cat(sprintf(
+  "\nmin %d | Q1 %.0f | median %.0f | mean %.0f | Q3 %.0f | max %d | sd %.0f | CV %.2f\n",
+  min(pre$N), quantile(pre$N, .25), median(pre$N), mean(pre$N),
+  quantile(pre$N, .75), max(pre$N), sd(pre$N), sd(pre$N) / mean(pre$N)
+))
+cat(sprintf("below the starting 5000: %d of %d replicates\n", sum(pre$N < 5000), nrow(pre)))
 
-  gg_combined <- (gg_n_log / gg_sr_log) +
-    plot_layout(guides = "collect") &
-    plot_annotation(tag_levels = "A") &
-    theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "right")
+cat("\nGroup means by fragmentation level:\n")
+print(dcast(
+  trends[, .(N = round(mean(N)), SR = round(mean(SR))), by = .(fragmentation, step_label)],
+  step_label ~ fragmentation,
+  value.var = c("N", "SR")
+))
 
-  ggsave(here("pics/random_trends_combined.png"), gg_combined, width = 8, height = 9, dpi = 300)
 
-  gg_spread <- plot_pre_frag_spread(trends)
-  ggsave(here("pics/random_pre_frag_spread.png"), gg_spread, width = 7, height = 4.5, dpi = 300)
+# Figures ----------------------------------------------------------------------
 
-  pre <- trends[step_label == "pre_fragmentation"]
-  cat("\nPre-fragmentation population size, all replicates:\n")
-  print(sort(pre$N))
-  cat(sprintf(
-    "\nmin %d | Q1 %.0f | median %.0f | mean %.0f | Q3 %.0f | max %d | sd %.0f | CV %.2f\n",
-    min(pre$N), quantile(pre$N, .25), median(pre$N), mean(pre$N),
-    quantile(pre$N, .75), max(pre$N), sd(pre$N), sd(pre$N) / mean(pre$N)
-  ))
-  cat(sprintf("below the starting 5000: %d of %d replicates\n", sum(pre$N < 5000), nrow(pre)))
+gg_n <- plot_trend(trends, "N")
+gg_sr <- plot_trend(trends, "SR")
 
-  cat("\nGroup means by fragmentation level:\n")
-  print(dcast(
-    trends[, .(N = round(mean(N)), SR = round(mean(SR))), by = .(fragmentation, step_label)],
-    step_label ~ fragmentation,
-    value.var = c("N", "SR")
-  ))
+# Linear N over SR, one shared legend
+gg_trends <- gg_n + gg_sr +
+  plot_layout(guides = "collect") &
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(face = "bold", size = 14), legend.position = "bottom")
 
-  cat("\nWritten to pics/random_trends_{N,SR}.png (linear),",
-      "\n            pics/random_trends_{N,SR}_log.png (log y),",
-      "\n            pics/random_trends_combined.png\n")
-}
+gg_spread <- plot_pre_frag_spread(trends)
+
+gg_trends
+gg_spread
+
+ggsave(here("pics/random_trends.png"), gg_trends, width = 10, height = 6, dpi = 300)
+# ggsave(here("pics/random_pre_frag_spread.png"), gg_spread, width = 7, height = 4.5, dpi = 300)

@@ -1,11 +1,11 @@
 library(here)
 
-#' Export a Tiled Matrix Image
+#' Export a Tiled Landscape Image
 #'
-#' Creates a larger tiled matrix by repeating a given matrix in a grid layout 
+#' Creates a larger tiled landscape/matrix by repeating a given landscape/matrix in a grid layout 
 #' and exports it as a PNG image with specified dimensions and color palette.
 #'
-#' @param matrix The input matrix to be tiled and exported as an image.
+#' @param matrix The input landscape/matrix to be tiled and exported as an image.
 #' @param rows Number of tile rows (default is 3).
 #' @param cols Number of tile columns (default is 3).
 #' @param output_filename File path for the output PNG (default includes deparse substitute).

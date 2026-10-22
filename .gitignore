@@ -5,6 +5,7 @@ Model/run_model.R
 *.html
 frag_comparison.gif
 styles.css
+docs/
 pics/
 data-raw/
 output/model_states/
@@ -15,3 +16,4 @@ output/old_logs/
 Model/logs/
 /.quarto/
 **/*.quarto_ipynb
+required_files.txt

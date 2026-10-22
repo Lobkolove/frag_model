@@ -1,10 +1,9 @@
 .Rproj.user/
 .Rhistory
 .DS_Store
-Model/run_model.R
+.ignore
+_quarto.yml
 *.html
-frag_comparison.gif
-styles.css
 docs/
 pics/
 output/model_states/
@@ -14,5 +13,4 @@ output/old_samples/
 output/old_logs/
 Model/logs/
 /.quarto/
-**/*.quarto_ipynb
 required_files.txt

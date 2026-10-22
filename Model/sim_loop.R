@@ -14,7 +14,7 @@ library(scales)
 
 # Model source files
 source(here("Model/parameters.R"))
-source(here("Model/src/clean_run.R"))
+source(here("Model/src/single_run.R"))
 source(here("Model/src/initialize.R"))
 source(here("Model/src/landscape.R"))
 source(here("Model/src/generate_agents.R"))
@@ -111,7 +111,7 @@ for (i in seq_len(n_sims)) {
   if (!is.null(notes)) cat("   Notes:   ", notes, "\n\n", sep = "")
   
   # Run the model and record states at specified steps
-  results <- clean_run(
+  results <- single_run(
     mod_par = mod_par,
     var_par = cur_var_par,
     species_par = species_par,

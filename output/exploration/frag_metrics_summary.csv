@@ -1,0 +1,52 @@
+fragmentation,metric,label,n,mean,sd,min,max,definition
+0.2,edge_cells,Edge cells,20,97.35,19.4023194489731,65,131,Habitat cells with >= 1 orthogonal matrix neighbour (toroidal)
+0.5,edge_cells,Edge cells,20,191.4,36.4913832655269,141,263,Habitat cells with >= 1 orthogonal matrix neighbour (toroidal)
+0.8,edge_cells,Edge cells,20,366.45,4.58228855715707,358,373,Habitat cells with >= 1 orthogonal matrix neighbour (toroidal)
+0.2,edge_interior_ratio,Edge-to-interior ratio,20,0.356993041887096,0.0962344027139752,0.209677419354839,0.536885245901639,Edge cells / interior cells
+0.5,edge_interior_ratio,Edge-to-interior ratio,20,1.13068844040996,0.477529070586773,0.602564102564103,2.34821428571429,Edge cells / interior cells
+0.8,edge_interior_ratio,Edge-to-interior ratio,20,64.0712905354449,49.9287675457278,21.0588235294118,186.5,Edge cells / interior cells
+0.2,edge_length,Total edge length,20,146.9,28.2952478807233,94,192,Number of habitat-matrix cell borders (toroidal)
+0.5,edge_length,Total edge length,20,339.2,71.5730028491338,232,482,Number of habitat-matrix cell borders (toroidal)
+0.8,edge_length,Total edge length,20,1022.6,33.4607389731844,950,1080,Number of habitat-matrix cell borders (toroidal)
+0.2,enn_mean,Mean nearest-neighbour distance,16,5.39825539924845,3.44101009590673,1.68816503408199,12.2065556157337,"Mean over patches of the toroidal distance to the nearest other patch (cell centres, edge to edge)"
+0.5,enn_mean,Mean nearest-neighbour distance,20,2.55418176783196,0.493343718530397,1.94832545992744,3.59058484687496,"Mean over patches of the toroidal distance to the nearest other patch (cell centres, edge to edge)"
+0.8,enn_mean,Mean nearest-neighbour distance,20,1.89784866935626,0.0518935583591015,1.80269349389099,2.0049416781473,"Mean over patches of the toroidal distance to the nearest other patch (cell centres, edge to edge)"
+0.2,habitat_cells,Habitat cells,20,375,0,375,375,Number of habitat cells
+0.5,habitat_cells,Habitat cells,20,375,0,375,375,Number of habitat cells
+0.8,habitat_cells,Habitat cells,20,375,0,375,375,Number of habitat cells
+0.2,habitat_prop,Habitat proportion,20,0.15,0,0.15,0.15,Habitat cells / all cells
+0.5,habitat_prop,Habitat proportion,20,0.15,0,0.15,0.15,Habitat cells / all cells
+0.8,habitat_prop,Habitat proportion,20,0.15,0,0.15,0.15,Habitat cells / all cells
+0.2,interior_cells,Interior cells,20,277.65,19.4023194489731,244,310,Habitat cells with 4 habitat neighbours (toroidal)
+0.5,interior_cells,Interior cells,20,183.6,36.4913832655269,112,234,Habitat cells with 4 habitat neighbours (toroidal)
+0.8,interior_cells,Interior cells,20,8.55,4.58228855715707,2,17,Habitat cells with 4 habitat neighbours (toroidal)
+0.2,interpatch_mean,Mean inter-patch distance,16,5.99703644809189,3.27974417204119,2,12.2065556157337,Mean over all patch pairs of the minimum toroidal distance between them
+0.5,interpatch_mean,Mean inter-patch distance,20,14.9322100184899,1.69147919199386,10.7267956283384,17.5914431882946,Mean over all patch pairs of the minimum toroidal distance between them
+0.8,interpatch_mean,Mean inter-patch distance,20,18.5242254587277,0.0981293129660575,18.2952277957324,18.7052882723655,Mean over all patch pairs of the minimum toroidal distance between them
+0.2,largest_patch_index,Largest patch index,20,0.876533333333333,0.150770279541369,0.506666666666667,1,Largest patch / all habitat cells
+0.5,largest_patch_index,Largest patch index,20,0.658266666666667,0.198589223101768,0.210666666666667,0.906666666666667,Largest patch / all habitat cells
+0.8,largest_patch_index,Largest patch index,20,0.0770666666666667,0.0380473081941248,0.0373333333333333,0.165333333333333,Largest patch / all habitat cells
+0.2,like_adjacency,Like adjacency,20,0.902066666666667,0.0188634985871489,0.872,0.937333333333333,Proportion of habitat cell sides bordering habitat (1 = fully compact)
+0.5,like_adjacency,Like adjacency,20,0.773866666666667,0.0477153352327558,0.678666666666667,0.845333333333333,Proportion of habitat cell sides bordering habitat (1 = fully compact)
+0.8,like_adjacency,Like adjacency,20,0.318266666666667,0.0223071593154562,0.28,0.366666666666667,Proportion of habitat cell sides bordering habitat (1 = fully compact)
+0.2,max_patch_size,Largest patch (cells),20,328.7,56.5388548280133,190,375,Number of cells in the largest patch
+0.5,max_patch_size,Largest patch (cells),20,246.85,74.470958663163,79,340,Number of cells in the largest patch
+0.8,max_patch_size,Largest patch (cells),20,28.9,14.2677405727968,14,62,Number of cells in the largest patch
+0.2,mean_patch_size,Mean patch size (cells),20,205.3125,93.8765593114591,75,375,Mean number of cells per patch
+0.5,mean_patch_size,Mean patch size (cells),20,25.1980020592153,13.0915980095076,12.5,62.5,Mean number of cells per patch
+0.8,mean_patch_size,Mean patch size (cells),20,2.35624568864302,0.177740015737993,2.09497206703911,2.75735294117647,Mean number of cells per patch
+0.2,median_patch_size,Median patch size (cells),20,181.725,123.709599997652,2,375,Median number of cells per patch
+0.5,median_patch_size,Median patch size (cells),20,3.1,3.67995995401552,1,16,Median number of cells per patch
+0.8,median_patch_size,Median patch size (cells),20,1,0,1,1,Median number of cells per patch
+0.2,n_patches,Number of patches,20,2.2,1.00524937990007,1,5,Patches under the 4-neighbour rule on the torus
+0.5,n_patches,Number of patches,20,17.8,6.66175257484253,6,30,Patches under the 4-neighbour rule on the torus
+0.8,n_patches,Number of patches,20,160,11.8854178679059,136,179,Patches under the 4-neighbour rule on the torus
+0.2,perimeter_area_ratio,Perimeter-area ratio,20,0.391733333333333,0.0754539943485956,0.250666666666667,0.512,Total edge length / habitat cells
+0.5,perimeter_area_ratio,Perimeter-area ratio,20,0.904533333333333,0.190861340931023,0.618666666666667,1.28533333333333,Total edge length / habitat cells
+0.8,perimeter_area_ratio,Perimeter-area ratio,20,2.72693333333333,0.089228637261825,2.53333333333333,2.88,Total edge length / habitat cells
+0.2,prop_edge,Edge cells (prop.),20,0.2596,0.0517395185305949,0.173333333333333,0.349333333333333,Edge cells / habitat cells
+0.5,prop_edge,Edge cells (prop.),20,0.5104,0.0973103553747385,0.376,0.701333333333333,Edge cells / habitat cells
+0.8,prop_edge,Edge cells (prop.),20,0.9772,0.0122194361524189,0.954666666666667,0.994666666666667,Edge cells / habitat cells
+0.2,prop_single_cell_patches,Single-cell patches (prop.),20,0.0333333333333333,0.102597835208515,0,0.333333333333333,Proportion of patches consisting of one cell
+0.5,prop_single_cell_patches,Single-cell patches (prop.),20,0.423720793095793,0.149155959066059,0.1,0.636363636363636,Proportion of patches consisting of one cell
+0.8,prop_single_cell_patches,Single-cell patches (prop.),20,0.617341137072575,0.0382053885121891,0.527272727272727,0.676300578034682,Proportion of patches consisting of one cell

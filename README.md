@@ -3,6 +3,22 @@
 *This repository contains the code used for my thesis and final presentation on the use of distance decay of similarity for disentangling geometric and demographic effects of habitat fragmentation from snapshot data. Below, you'll find details on how to run the metacommunity simulations and how to reproduce the diversity and distance decay analyses in
 `scripts/main_analyses.R`.*
 
+## Origin and relationship to the original model
+
+This repository builds on the metacommunity model of Gelber et al. (2025) and
+the original code at https://github.com/Stavooo/Gelber_etal_2023_frag. All
+credit for the original model design goes to the original authors. The
+geometric/demographic partitioning of fragmentation effects used here follows
+their framework.
+
+> Gelber, S., Blowes, S. A., Chase, J. M., Huth, A., Schurr, F. M.,
+> Tietjen, B., Zeller, J. W., & May, F. (2025). Geometric and demographic
+> effects explain contrasting fragmentation–biodiversity relationships across
+> scales. *Oikos*, 2025(7), e10778. https://doi.org/10.1111/oik.10778
+
+Main differences in this version:
+- Toroidal (periodic) landscapes instead of non-periodic ones
+- ...
 
 ## Abstract
 

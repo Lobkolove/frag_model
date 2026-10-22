@@ -1,4 +1,5 @@
 # Distance decay of the core series as separate plots
+# (used for power-point presentation)
 #
 # Reproduces the distance decay plots of the core series from
 # scripts/main_analyses.R (sections 1.1.1 and 1.2.1), but draws one plot per

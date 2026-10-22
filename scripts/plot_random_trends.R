@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Population and richness trends across the random-dispersal series
+# Population and richness trends across the random-dispersal series (appendix figure)
 #
 ################################################################################
 #

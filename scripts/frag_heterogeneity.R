@@ -1,4 +1,5 @@
 # Geometric effect of fragmentation on landscape-level habitat heterogeneity
+# (used for power-point presentation)
 #
 # A single continuous landscape is fragmented at two degrees of fragmentation.
 # The top row shows the resulting landscapes, the middle row the set of

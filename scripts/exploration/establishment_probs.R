@@ -132,5 +132,5 @@ cat("\nMean establishment probability (niche pass at destination), averaged over
     CONDITION_ON_PARENT, "\n\n")
 print(summary_tbl, digits = 3)
 
-fwrite(results, here("output/establishment_probs_continuous.csv"))
-cat("\nPer-landscape results written to output/establishment_probs_continuous.csv\n")
+fwrite(results, here("output/exploration/establishment_probs.csv"))
+cat("\nPer-landscape results written to output/exploration/establishment_probs.csv\n")

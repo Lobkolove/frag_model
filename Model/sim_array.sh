@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-#SBATCH --job-name=frag_sim
-#SBATCH --mail-user=thiej93
+#SBATCH --job-name=dd_geodem
+#SBATCH --mail-user=<EMAIL_ADDRESS>
 #SBATCH --mail-type=end
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -9,8 +9,8 @@
 #SBATCH --mem-per-cpu=700
 #SBATCH --time=03:20:00
 #SBATCH --qos=standard
-#SBATCH --output=logs/frag_sim_%A_%a.out
-#SBATCH --error=logs/frag_sim_%A_%a.err
+#SBATCH --output=logs/dd_geodem_%A_%a.out
+#SBATCH --error=logs/dd_geodem_%A_%a.err
 #SBATCH --array=1-18
 
 module add R

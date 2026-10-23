@@ -1,0 +1,138 @@
+---
+title: "Model changes in `Lobkolove/frag_model` since project start"
+date: "October 23, 2026"
+format: gfm
+---
+
+## Executive summary
+
+This note summarizes implementation changes introduced in `Lobkolove/frag_model` from the project start commit (`475ca35`, 2023-12-13) through 2026-10-22, with emphasis on model mechanism changes versus inherited baseline context from `Stavooo/Gelber_etal_2023_frag`.
+
+Direct evidence from the current README states that a main difference is **"Toroidal (periodic) landscapes instead of non-periodic ones"** (`README.md`, lines 19–21). The code/history support this and show additional substantial changes:
+
+- migration from hard-edge behavior toward toroidal handling in dispersal, patch definition, and pairwise distances;
+- replacement/standardization of landscape and fragmentation generation around `fbm_fft()` and mask-based fragmentation;
+- explicit dispersal-mode alternatives (short/long vs random habitat-cell dispersal; exponential vs log-normal kernels);
+- major upgrades to simulation bookkeeping, seed handling, array execution, and log-driven reproducibility;
+- expanded analysis workflow for distance-decay and diversity comparisons across core and sensitivity series.
+
+Where scientific rationale is not explicit in commit messages/code comments, interpretations are marked as **inference**.
+
+## Scope and limitations
+
+- This summary is based on Git history available on `main`, commit metadata, and current code state.
+- Git history documents **what changed in implementation**, not always the full scientific intent behind each change.
+- Some features retained in `legacy/` are included for context to distinguish inherited/original structure from current active model structure.
+- No quantitative outcomes are claimed here beyond what is directly represented in code, logs, and analysis scripts.
+
+## Development history (phase-based)
+
+### Phase 0 — Repository start and inherited baseline context (2023-12 to 2025-10)
+
+- Project starts at `475ca35` ("Initial commit", 2023-12-13).
+- README updates and repository scaffolding dominate early history.
+- Relative to the upstream/original project, this period is best treated as baseline carryover and setup, not yet a clear mechanism shift.
+
+### Phase 1 — Landscape-generation overhaul and toroidal transition begins (2025-11 to 2026-02)
+
+Key commits:
+
+- `1be19aa` (2025-11-10): "Novel landscape functions..."
+- `08e05d9` (2025-12-08): adds toroidal dispersal function (not yet wired)
+- `32d815b` (2026-01-11): toroidal dispersal used in birth process
+- `77f97dc` (2026-01-27): toroidal clumping function introduced
+- `a98a9fa` / `d7e9bc5` (2026-01-25/27): mask-based fragmentation and split fragmentation pipeline
+- `7784f90` -> `bcabde5` (2026-02-02 to 2026-02-12): toroidal distance implementation and integration
+- `02f2ecd` / `585fcb9` (2026-02-02): seed splitting and fragmentation-mask autocorrelation fix
+
+### Phase 2 — State/metadata refactor and reproducibility hardening (2026-03 to 2026-06)
+
+Key commits:
+
+- `5194e6c` (2026-03-28): seed handling changes across core model files
+- `f178da2` (2026-04-01): `core_state`/`full_state` split
+- `77f4681`, `7c1d12f`, `47691ac` (2026-04): SLURM/extended pipeline and concurrency/logging fixes
+- `6979c1c`, `492bf1d` (2026-05): distance-decay pipeline rewrite + cutoff/summary corrections
+- `7055fcb` -> `2561ab8` (2026-05-29 to 2026-06-02): substantial logging/registry/recovery refactor
+
+### Phase 3 — Dispersal alternatives + analysis expansion + legacy separation (2026-07 to 2026-10)
+
+Key commits:
+
+- `89b9198`, `3980dcf` (2026-07-28): random habitat-cell dispersal mode + explicit dispersal-type switch
+- `e726873` (2026-07-28): log/registry include dispersal type and kernel metadata
+- `4fbc0cf` (2026-08-26): dedicated random-dispersal simulation series configuration
+- `d2916bb` (2026-09-12): main analysis script rename and Sørensen distance-decay section
+- `6910a02` (2026-07-28): move old codebase into `legacy/`
+- `d60da66` and `abb7f20` (2026-10-22): README rewrite + explicit upstream attribution
+
+## Major model changes and consequences
+
+| Approx. date/phase | Change | Affected components | Scientific/technical consequence |
+|---|---|---|---|
+| 2025-12 to 2026-01 (Phase 1) | Toroidal dispersal implemented then activated | `Model/src/disperse.R`, `Model/src/birth.R` (`08e05d9`, `32d815b`) | Removes hard-edge loss/rejection during short-distance dispersal by wrapping coordinates. **Inference:** reduces boundary artifacts in movement outcomes. |
+| 2026-01 to 2026-02 (Phase 1) | Toroidal patch/clump handling | `R/toroidal_clump.R` (`77f97dc`, `b3ed0ac`) | Patches touching opposite grid borders are merged, changing patch identity/size metrics on periodic landscapes. |
+| 2026-02 (Phase 1) | Toroidal pairwise distance support | `R/toroidal_dist.R`, `R/dist_decay.R`, spatial-curve scripts (`7784f90`, `bcabde5`) | Distance-decay and related spatial metrics can use periodic shortest-path geometry instead of edge-biased Euclidean distances. |
+| 2025-11 onward (Phase 1) | FFT fractional-Brownian landscape generator formalized | `Model/src/landscape.R` (`1be19aa`, `0951639`) | Standardized autocorrelated landscape generation with explicit `ac_amount` control and reproducible seeding. |
+| 2026-01 to 2026-02 (Phase 1) | Fragmentation via mask generation; inverse-fragmentation autocorrelation fix | `Model/src/fragmentation.R` (`a98a9fa`, `d7e9bc5`, `585fcb9`) | Fragmentation is generated as a mask derived from `fbm_fft`; fix aligns fragmentation level with mask roughness logic (`ac_amount = 1 - fragmentation`). |
+| 2026-02 and 2026-03 (Phases 1–2) | Seed stream separation and seed handling refactor | `single_run.R`, `initialize.R`, `fragmentation.R` (`02f2ecd`, `5194e6c`) | Distinguishes master/landscape/community/fragmentation randomness; improves reproducibility and interpretability of replicate identity. |
+| 2026-07 to 2026-08 (Phase 3) | Dispersal alternatives expanded: short/long vs random habitat-cell mode; kernel options retained | `parameters.R`, `disperse.R`, `birth.R`, scripts/logging (`89b9198`, `3980dcf`, `4fbc0cf`) | Enables targeted comparison between local-kernel dispersal dynamics and global habitat-targeted dispersal scenarios. |
+| 2026-04 to 2026-08 (Phases 2–3) | Simulation bookkeeping and batch execution hardened | `sim_array.R`, `sim_loop.R`, `registry.R`, `last_sim_id.R`, log recovery scripts | Better collision avoidance (`sim_id`, spacer, replicate numbering), richer metadata, and improved handling of failed/partial/duplicate runs. |
+| 2026-05 to 2026-09 (Phases 2–3) | Distance-decay/diversity analysis workflow broadened | `R/dist_decay.R`, `scripts/main_analyses.R` and supporting scripts | Adds/updates grouped decay, Bray/Sørensen usage, diversity summaries, and treatment of problematic/duplicate simulations in analysis selection. |
+| 2026-07 onward (Phase 3) | Legacy separation and documentation overhaul | `legacy/`, README, script organization (`6910a02`, `d60da66`) | Improves reproducibility and interpretability by isolating historical code from active pipeline. (Infrastructure/documentation change, not direct mechanism change.) |
+
+## Current architecture and what now differs from the original model context
+
+Direct code evidence in current active model:
+
+- **Toroidal movement and geometry are first-class in active pipeline**:
+  - `toroidal_disperse()` wraps moves onto `1..grid_size` (`Model/src/disperse.R`).
+  - `toroidal_clump()` merges border-touching clumps (`R/toroidal_clump.R`).
+  - `dist_decay(..., dist_type = "toroidal")` routes through `toroidal_dist()` (`R/dist_decay.R`, `R/toroidal_dist.R`).
+- **Landscape/fragmentation generation now centers on FFT fBm + masking**:
+  - `fbm_fft()` defines autocorrelated fields (`Model/src/landscape.R`).
+  - `ls_mask()` creates habitat masks via thresholding and `raster::mask` with `ac_amount = 1 - fragmentation` (`Model/src/fragmentation.R`).
+- **Dispersal modes are explicit and logged**:
+  - Switch-level control for `dispersal_type` and `kernel_type` (`Model/parameters.R`).
+  - Registry/logging persists dispersal mode/kernel/seed metadata (`Model/src/registry.R`, `output/simulations_log.csv` usage in scripts).
+- **Pipeline is log-indexed and reproducibility-oriented**:
+  - Batch array execution resolves scenario, seed, replicate, and output naming systematically (`Model/sim_array.R`, `Model/src/registry.R`).
+
+Contrast to inherited/original context retained in `legacy/`:
+
+- Old scripts (e.g., `legacy/Model/src/cookie_cutting.R`) show earlier fragmentation workflow and project structure that were later reorganized.
+- The modern active code path in `Model/` + `R/` is now structurally separated from legacy code (`6910a02`).
+
+## Analysis and reproducibility workflow changes
+
+Substantive workflow changes (not all are mechanism changes, but they affect model use/validation):
+
+1. **Array-safe simulation execution and indexing**
+   - `sim_id` assignment using prior log state + optional spacer.
+   - scenario keys and padded filenames encode parameter settings and replicate IDs.
+
+2. **Reproducibility and provenance metadata**
+   - logging stores seeds, dispersal mode/kernel, varied parameters, and output paths.
+   - helper scripts recover/reconstruct logs and detect/handle failed or duplicate runs.
+
+3. **Analysis selection from log rather than ad hoc file picks**
+   - `sim_ids()`/`sim_select()` pattern drives series selection in analysis scripts.
+
+4. **Distance-decay and diversity expansion**
+   - broader script set for core analyses, sensitivity series, and additional checks (e.g., random-dispersal behavior, establishment probabilities, and diversity summaries).
+
+## Most important commits / ranges (concise list)
+
+- Project start / baseline: [`475ca35`](https://github.com/Lobkolove/frag_model/commit/475ca35a32c5e508101c31f4c6c74b94fab4b591)
+- Early landscape-function shift: [`1be19aa`](https://github.com/Lobkolove/frag_model/commit/1be19aa1bf20e8a385a833ecdc24f426333c8391)
+- Toroidal dispersal introduced and activated: [`08e05d9`](https://github.com/Lobkolove/frag_model/commit/08e05d931d718cecdecf15682e4abb92dc0c28cf), [`32d815b`](https://github.com/Lobkolove/frag_model/commit/32d815b3d3c6dcdd62db63eb00d07ac72927856f)
+- Toroidal patch and distance support: [`77f97dc`](https://github.com/Lobkolove/frag_model/commit/77f97dc00119a97890ffa83a30c599a4034989c4), [`7784f90`](https://github.com/Lobkolove/frag_model/commit/7784f90d0608493a035a10124b88cc08c2504059), [`bcabde5`](https://github.com/Lobkolove/frag_model/commit/bcabde550263b4584e879918d9280aca751fdec9)
+- Fragmentation-mask and seed-stream corrections: [`a98a9fa`](https://github.com/Lobkolove/frag_model/commit/a98a9fa2156717fe798f97a0c6ebdc9c9a94af85), [`02f2ecd`](https://github.com/Lobkolove/frag_model/commit/02f2ecdced551506d6dc29bd831bec0af41b4986), [`585fcb9`](https://github.com/Lobkolove/frag_model/commit/585fcb963428b1920a73966292d4d1e75f2abb0d)
+- Logging/reproducibility hardening range: [`7055fcb` → `2561ab8`](https://github.com/Lobkolove/frag_model/commits/main/?after=7055fcb8aa42f4a3138f5d77b6a5a1c7f64ecf66+34)
+- Random habitat-dispersal series and metadata integration: [`89b9198`](https://github.com/Lobkolove/frag_model/commit/89b9198f240b37b2960956f30afe76f2ed6041c3), [`3980dcf`](https://github.com/Lobkolove/frag_model/commit/3980dcf6442514dbff6167495ebdb20a260528a0), [`4fbc0cf`](https://github.com/Lobkolove/frag_model/commit/4fbc0cfa6c8db30dcf0100ee20a073cc9ad07e4c)
+- Legacy separation and explicit upstream framing: [`6910a02`](https://github.com/Lobkolove/frag_model/commit/6910a0277f4c9b7eaecc5dccc223ce97eae40c53), [`d60da66`](https://github.com/Lobkolove/frag_model/commit/d60da666815f86b7b09a1479e75b46d3f404d1c7), [`abb7f20`](https://github.com/Lobkolove/frag_model/commit/abb7f20e31e746d28b2ea2344c2f28d636ad5efd)
+
+## Notes on evidence vs inference
+
+- **Direct evidence** comes from commit messages/dates/changed files and current code behavior.
+- **Inference** was used only for likely scientific implications (e.g., reduced boundary artifacts under toroidal movement), and those statements are explicitly labeled.

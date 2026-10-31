@@ -104,37 +104,6 @@ compute_diversity <- function(
 
       } else {
 
-        # Landscape-level richness
-        gamma <- tibble::tibble(
-          scale = factor(
-            "landscape",
-            levels = c("sample", "landscape")
-          ),
-          richness = dplyr::n_distinct(
-            subset[[species_col]]
-          )
-        )
-
-        # Mean sample-level richness
-        alpha <- subset |>
-          dplyr::group_by(.data[[sample_col]]) |>
-          dplyr::summarise(
-            richness = dplyr::n_distinct(
-              .data[[species_col]]
-            ),
-            .groups = "drop"
-          ) |>
-          dplyr::summarise(
-            richness = mean(richness, na.rm = TRUE)
-          ) |>
-          dplyr::mutate(
-            scale = factor(
-              "sample",
-              levels = c("sample", "landscape")
-            )
-          ) |>
-          dplyr::select(scale, richness)
-
         # Site-by-species abundance matrix
         spec_table <- subset |>
           dplyr::select(
@@ -152,37 +121,34 @@ compute_diversity <- function(
           ) |>
           dplyr::select(dplyr::starts_with("sp_"))
 
-        # Alpha Hill numbers
+        # Alpha richness and Hill numbers
         sample_richness <- rowSums(spec_table > 0)
         sample_shannon <- as.numeric(vegan::renyi(spec_table, scales = 1, hill = TRUE))
         sample_simpson <- as.numeric(vegan::renyi(spec_table, scales = 2, hill = TRUE))
 
-        alpha <- alpha |>
-          dplyr::mutate(
-            hill_shannon = mean(sample_shannon),
-            hill_simpson = mean(sample_simpson),
-            evenness = mean(sample_shannon / sample_richness, na.rm = TRUE)
-          )
+        alpha <- tibble::tibble(
+          scale = factor(
+            "sample",
+            levels = c("sample", "landscape")
+          ),
+          richness = mean(sample_richness),
+          hill_shannon = mean(sample_shannon),
+          hill_simpson = mean(sample_simpson),
+          evenness = mean(sample_shannon / sample_richness, na.rm = TRUE)
+        )
 
-        # Gamma Hill numbers
-        gamma <- gamma |>
-          dplyr::mutate(
-            hill_shannon = as.numeric(
-              vegan::renyi(
-                colSums(spec_table),
-                scales = 1,
-                hill = TRUE
-              )
-            ),
-            hill_simpson = as.numeric(
-              vegan::renyi(
-                colSums(spec_table),
-                scales = 2,
-                hill = TRUE
-              )
-            ),
-            evenness = hill_shannon / richness
-          )
+        # Gamma richness and Hill numbers
+        pooled <- colSums(spec_table)
+        gamma <- tibble::tibble(
+          scale = factor(
+            "landscape",
+            levels = c("sample", "landscape")
+          ),
+          richness = sum(pooled > 0),
+          hill_shannon = as.numeric(vegan::renyi(pooled, scales = 1, hill = TRUE)),
+          hill_simpson = as.numeric(vegan::renyi(pooled, scales = 2, hill = TRUE)), 
+          evenness = hill_shannon / richness
+        )
 
         results <- dplyr::bind_rows(alpha, gamma)
       }

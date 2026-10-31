@@ -30,8 +30,8 @@ run_model_step <- function(
     species_specific = species_specific,
     d_type = d_type,
     kernel = kernel,
-    nb = ifelse(species_specific, NULL, var_par$nb),
-    disp = ifelse(species_specific, NULL, var_par$disp),
+    nb = if (species_specific) NULL else var_par$nb,
+    disp = if (species_specific) NULL else var_par$disp,
     d_dis = var_par$disp_dist,
     habitat_cells = cells$habitat
   )
@@ -45,8 +45,8 @@ run_model_step <- function(
     edge_effects = edge_effects,
     edge_cells = cells$edges,
     species_specific = species_specific,
-    death_rate = ifelse(species_specific, NULL, mod_par$death_rate),
-    edge_factor = ifelse(species_specific, NULL, var_par$edge)
+    death_rate = if (species_specific) NULL else mod_par$death_rate,
+    edge_factor = if (species_specific) NULL else var_par$edge_factor
   )
 
   # Immigration
@@ -60,7 +60,7 @@ run_model_step <- function(
       k_intra = mod_par$k_intra,
       species_par = species_par,
       species_specific = species_specific,
-      nb = ifelse(species_specific, NULL, var_par$nb)
+      nb = if (species_specific) NULL else var_par$nb
     )
   }
 

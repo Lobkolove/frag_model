@@ -153,27 +153,15 @@ compute_diversity <- function(
           dplyr::select(dplyr::starts_with("sp_"))
 
         # Alpha Hill numbers
+        sample_richness <- rowSums(spec_table > 0)
+        sample_shannon <- as.numeric(vegan::renyi(spec_table, scales = 1, hill = TRUE))
+        sample_simpson <- as.numeric(vegan::renyi(spec_table, scales = 2, hill = TRUE))
+
         alpha <- alpha |>
           dplyr::mutate(
-            hill_shannon = mean(
-              as.numeric(
-                vegan::renyi(
-                  spec_table,
-                  scales = 2,
-                  hill = TRUE
-                )
-              )
-            ),
-            hill_simpson = mean(
-              as.numeric(
-                vegan::renyi(
-                  spec_table,
-                  scales = 3,
-                  hill = TRUE
-                )
-              )
-            ),
-            evenness = log(hill_shannon) / log(richness)
+            hill_shannon = mean(sample_shannon),
+            hill_simpson = mean(sample_simpson),
+            evenness = mean(sample_shannon / sample_richness, na.rm = TRUE)
           )
 
         # Gamma Hill numbers
@@ -182,14 +170,14 @@ compute_diversity <- function(
             hill_shannon = as.numeric(
               vegan::renyi(
                 colSums(spec_table),
-                scales = 2,
+                scales = 1,
                 hill = TRUE
               )
             ),
             hill_simpson = as.numeric(
               vegan::renyi(
                 colSums(spec_table),
-                scales = 3,
+                scales = 2,
                 hill = TRUE
               )
             ),

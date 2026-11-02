@@ -90,11 +90,21 @@ sim_select <- function(
     group_by(across(all_of(static))) %>%
     summarise(n = n(), .groups = "drop")
   if (mode == "biggest_sample") {
-    biggest <- combs %>%
-      filter(n == max(n)) %>%
-      select(-n)
+    biggest <- combs %>% filter(n == max(n))
+
+    if (nrow(biggest) > 1) {
+      cat("Several static-variable combinations tie for the largest sample (n = ",
+          max(combs$n), "):\n", sep = "")
+      print(biggest, n = Inf, width = Inf)
+      stop(
+        "Cannot choose between tied combinations. ",
+        "Narrow the conditions in `...` or use mode = \"user_defined\".",
+        call. = FALSE
+      )
+    }
+
     matches <- matches %>%
-      inner_join(biggest, by = static)
+      inner_join(select(biggest, -n), by = static)
   } else if (mode == "user_defined") {
     cat("Multiple combinations of static variables found:\n")
     print(combs)

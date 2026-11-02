@@ -63,6 +63,7 @@ output/
   model_states/           Full state snapshots (.rds), one per simulation
   sampled_data/           Sampled community data (.csv), the analysis input
 pics/                   Exported figures
+docs/                   Documentation
 ```
 
 `output/model_states/`, `output/sampled_data/` and `pics/` are in `.gitignore` —

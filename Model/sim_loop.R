@@ -94,7 +94,7 @@ for (i in seq_len(n_sims)) {
   # A single master seed is set in parameters.R.
   # If we want to have different seeds for each simulation, 
   # we need to increment the master_seed for each simulation.
-  master_seed <- master_seed + i - 1
+  current_seed <- master_seed + i - 1
 
   # Extract parameters for this simulation
   cur_var_par <- var_par[i, ]
@@ -117,7 +117,7 @@ for (i in seq_len(n_sims)) {
     species_par = species_par,
     switch = switch,
     sim_id = sim_id,
-    seed = master_seed,
+    seed = current_seed,
     record_steps = steps_to_record
   )
 

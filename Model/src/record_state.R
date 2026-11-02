@@ -81,7 +81,7 @@ record_state <- function(
     stop("`model_state` missing element(s): ", paste(missing, collapse = ", "))
   }
 
-  nulls <- required[vapply(required, function(x) is.null(x), logical(1))]
+  nulls <- required[vapply(required, function(x) is.null(model_state[[x]]), logical(1))]
   if (length(nulls) > 0L) {
     stop("`model_state` has empty element(s): ", paste(nulls, collapse = ", "))
   }

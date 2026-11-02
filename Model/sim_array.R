@@ -189,8 +189,8 @@ if (export_states) {
 recorded_steps <- names(results)
 sampled_files <- character()
 
-  # For each selected sampling method we will create a single CSV file 
-  # with the sampled data from all recorded steps.
+# For each selected sampling method we will create a single CSV file 
+# with the sampled data from all recorded steps.
 for (method in names(sampling_methods)) {
 
   sampled <- list()

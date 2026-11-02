@@ -198,7 +198,7 @@ birth <- function(
   return(agents)
 }
 
-check_recruit <- function(agents, grid, location, u, nb, species_id, k_inter, k_intra) {
+check_recruit <- function(agents, grid, location, u, nb, sp_id, k_inter, k_intra) {
 
   # check if the new location is a habitat cell (skip if not)
   if (is.na(grid[location[1], location[2]])) return(FALSE)
@@ -219,7 +219,7 @@ check_recruit <- function(agents, grid, location, u, nb, species_id, k_inter, k_
   inter_cell <- collapse::fnrow(inter_cell_subset)
   intra_cell <- collapse::fnrow(collapse::fsubset(
     inter_cell_subset,
-    species_id == species_id
+    species_id == sp_id
   ))
 
   if (

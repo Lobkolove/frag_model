@@ -137,7 +137,7 @@ sim_filename <- function(sim_id, scenario, replicate_num) {
 log_entry <- function(
   meta,
   job_id,
-  scenario_key,
+  scenario,
   replicate_num,
   project_version,
   status,

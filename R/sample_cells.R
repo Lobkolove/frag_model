@@ -69,8 +69,6 @@ sample_cells <- function(full_state,
   method <- rlang::arg_match(method)
   format <- rlang::arg_match(format)
   
-  if (!is.null(seed)) set.seed(seed)
-  
   # Extract grid and species abundances per cell from state
   grid            <- full_state$grid
   ss_abund        <- full_state$ss_abund
@@ -91,7 +89,11 @@ sample_cells <- function(full_state,
       if (is.null(n_samples)) {
         stop("n_samples must be provided for random sampling")
       }
-      sample(habitat_cells, n_samples)    
+      if (is.null(seed)) {
+        sample(habitat_cells, n_samples)    
+      } else {
+        withr::with_seed(seed, sample(habitat_cells, n_samples))
+      }
     },
     
     checkerboard = {

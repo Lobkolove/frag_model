@@ -161,7 +161,7 @@ sample_cells <- function(full_state,
       names_prefix = "sp_",
       names_sort = TRUE
     ) %>%
-    dplyr::select(-sp_NA)
+    dplyr::select(-dplyr::any_of("sp_NA"))  # Remove any column for NA species if present
   
   return(out_wide)
 

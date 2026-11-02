@@ -17,8 +17,23 @@ their framework.
 > scales. *Oikos*, 2025(7), e10778. https://doi.org/10.1111/oik.10778
 
 Main differences in this version:
-- Toroidal (periodic) landscapes instead of non-periodic ones
-- ...
+- Toroidal (periodic) landscapes instead of non-periodic ones. This covers dispersal
+  (`toroidal_disperse()`), patch delineation (`toroidal_clump()`, which merges patches
+  touching opposite borders) and pairwise distances (`toroidal_dist()`)
+- Fragmentation is generated as a habitat mask derived from `fbm_fft()` (`ls_mask()`),
+  with `ac_amount = 1 - fragmentation`, replacing the earlier cookie-cutting approach (although the outcome is unchanged)
+- Separate random seed streams for the master run, landscape, community and
+  fragmentation mask, so replicates can be identified and reproduced
+- Option for a novel dispersal mode: dispersal to a random habitat cell
+- Log-driven reproducibility: simulations are indexed in `output/simulations_log.csv` (parameters, seeds, dispersal mode, file paths). Analyses select data from the log via `sim_select()` instead of picking files by hand
+- Modular workflow: simulation (`Model/`), sampling (`sampling_methods`, `R/sample_cells.R`) and analysis (`R/`, `scripts/`) are separate steps that communicate only through saved files and the simulation log. Each step can be rerun, changed or replaced without touching the others (e.g. new sampling schemes or new analyses on existing simulations)
+- Tools for handling problem runs: scripts to recover or rebuild the log and to
+  detect failed, partial or duplicate simulations
+- Additional scripts for investigations and validations that are not part of the
+  thesis pipeline (see below)
+- Distance-decay and diversity analysis workflow (`dist_decay.R`, `compute_diversity.R`, `scripts/main_analyses.R`), with a seed-duplicate check before each series
+- Original code moved to `legacy/`, separated from the active pipeline in `Model/` and `R/`
+
 
 ## Abstract
 
